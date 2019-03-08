@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package dispatcher;
+
+
+message ID {
+    string pod_name = 1;
+    string pod_namespace = 2;
+}
+
+// Intro message is sent from a client to the dispatcher to announce
+// its presence on the node.
+message Intro {
+    ID pod_id = 1;
+}
+
+// Connect message is sent by the client which wants to build memif connection
+// to another pod which is in Listen mode.
+message Connect {
+    ID src_id = 1;
+    ID dst_id = 2;
+}
+
+// Listen message is sent by the the client which wants to listen for incoming
+// memif connection. Usually a server type application.
+message Listen {
+    ID listener_id = 1;
+}
+
+// Socket message is sent by the dispatcher to both client and server with the sockets
+// they have to use to build memif connection
+message Socket {
+    ID pod_id = 1;
+    int64 fd = 2;
+}
+
+// Reply message is sent by the dispatcher as a confirmation echoing requesting pod
+// id and operation, extended error may contain additional information is success is false
+message Reply {
+    ID pod_id = 1;
+    Operation op = 2;
+    bool success = 3;
+    string extended_error = 4;
+}
+
+enum Operation {
+    DEFAULT = 0;
+    INTRO = 1;
+    CONNECT = 2;
+    LISTEN = 3;
+    SOCKET = 4;
+}
+
+// Client side set of RPCs
+service Client {
+    rpc SendIntro (Intro) returns(Reply);
+    rpc SendConnect (Connect) returns(Reply);
+    rpc SendListen (Listen) returns(Reply);
+}
+
+// Dispatcher side set of RPCs
+service Dispatcher {
+    rpc SendSocket (Socket) returns (Reply);
+}
