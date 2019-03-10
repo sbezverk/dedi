@@ -36,7 +36,7 @@ func main() {
 	// Setting up gRPC server
 	listener, err := net.Listen("unix", "/var/lib/memif-dispatch/memif-dispatcher.sock")
 	if err != nil {
-		logger.Errorf("Failed to setup listener with error: %+v", err)
+		logger.Errorf("Failed to setup listener with error", err)
 	}
 	srv := grpc.NewServer([]grpc.ServerOption{}...)
 
