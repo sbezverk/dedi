@@ -31,7 +31,7 @@ func init() {
 func main() {
 	var err error
 	flag.Parse()
-
+	logger.Infof("Starting Connect...")
 	clientConn, err := dial(context.Background(), "/var/lib/memif-dispatch/memif-dispatcher.sock")
 	if err != nil {
 		logger.Errorf("Failed to dial into Dispatcher with error: %+v", err)
