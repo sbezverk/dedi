@@ -25,12 +25,12 @@ func (m *memifDispatcher) listener(in *dispatcher.ListenMsg) (types.Socket, erro
 	if int32(len(client.Listen)) >= client.MaxConnections {
 		return types.Socket(0), status.Errorf(codes.ResourceExhausted, "Exceeded number of supported Listen connections")
 	}
-	sock, err := utils.AllocateSocket()
+	sock, err := utils.AllocateSocket(id)
 	if err != nil {
 		return types.Socket(0), status.Errorf(codes.Aborted, "Failed to allocate a socket with error: %+v", err)
 	}
 
-	return types.Socket(sock), status.Errorf(codes.Unavailable, "Listen has not been yet implemented")
+	return types.Socket(sock), nil
 }
 
 // add adds a new client and initializes its Listen and Connect structures
