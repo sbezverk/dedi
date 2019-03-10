@@ -8,12 +8,6 @@ message ID {
     string pod_namespace = 2;
 }
 
-// Intro message is sent from a client to the dispatcher to announce
-// its presence on the node.
-message IntroMsg {
-    ID pod_id = 1;
-}
-
 // Connect message is sent by the client which wants to build memif connection
 // to another pod which is in Listen mode.
 message ConnectMsg {
@@ -25,6 +19,9 @@ message ConnectMsg {
 // memif connection. Usually a server type application.
 message ListenMsg {
     ID listener_id = 1;
+    // max_supported_connections identifies a max number of connections supported by
+    // a specific listener.
+    int32 max_connections = 2;
 }
 
 // Socket message is sent by the dispatcher to both client and server with the sockets
@@ -32,29 +29,12 @@ message ListenMsg {
 message SocketMsg {
     ID pod_id = 1;
     int64 fd = 2;
-}
-
-// Reply message is sent by the dispatcher as a confirmation echoing requesting pod
-// id and operation, extended error may contain additional information is success is false
-message ReplyMsg {
-    ID pod_id = 1;
-    Operation op = 2;
     bool success = 3;
     string extended_error = 4;
 }
 
-enum Operation {
-    DEFAULT = 0;
-    INTRO = 1;
-    CONNECT = 2;
-    LISTEN = 3;
-    SOCKET = 4;
-}
-
 // Dispatcher side set of RPCs
 service Dispatcher {
-    rpc Socket (SocketMsg) returns (ReplyMsg);
-    rpc Intro (IntroMsg) returns(ReplyMsg);
-    rpc Connect (ConnectMsg) returns(ReplyMsg);
-    rpc Listen (ListenMsg) returns(ReplyMsg);
+    rpc Connect (ConnectMsg) returns(SocketMsg);
+    rpc Listen (ListenMsg) returns(SocketMsg);
 }

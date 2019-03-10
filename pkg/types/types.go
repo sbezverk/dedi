@@ -19,11 +19,19 @@ const (
 	Allocated
 	// Failed state of a socket
 	Failed
-	// Connected state of a socket
-	Connected
+	// Listen state of a socket
+	Listen
 )
 
-// Clients is a map of clients IDs, each client can have a map of Sockets and each socket has a state
+// Client can have a map of Sockets and each socket has a state for Listen and/or Connect
+type Client struct {
+	// MaxConnections sets by the listener to indicate the number of connections it supports
+	MaxConnections int32
+	Listen         map[Socket]State
+	Connect        map[Socket]State
+}
+
+// Clients is a map of clients IDs each client can have a map of Sockets and each socket has a state
 type Clients struct {
-	Client map[ID]map[Socket]State
+	Clients map[ID]Client
 }

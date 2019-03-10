@@ -1,0 +1,33 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+spec:
+  selector:
+    matchLabels:
+      app: dispatch
+  template:
+    metadata:
+      labels:
+        app: dispatch
+    spec:
+      containers:
+        - name: dispatcher
+          image: docker.io/sbezverk/memif-dispatch:0.0.0
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: kubelet-socket
+              mountPath: /var/lib/kubelet/device-plugins
+            - name: memif-socket
+              mountPath: /var/lib/memif-dispatch
+      volumes:
+        - hostPath:
+            path: /var/lib/kubelet/device-plugins
+            type: DirectoryOrCreate
+          name: kubelet-socket
+        - hostPath:
+            path: /var/lib/memif-dispatch
+            type: DirectoryOrCreate
+          name: memif-socket
+metadata:
+  name: dispatch
+  namespace: default

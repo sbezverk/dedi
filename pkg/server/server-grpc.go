@@ -5,22 +5,24 @@ import (
 
 	"github.com/sbezverk/memif2memif/pkg/apis/dispatcher"
 	"github.com/sbezverk/memif2memif/pkg/types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"go.uber.org/zap"
 )
 
 // MemifDispatcher defines interface used to access MemifDispatcher data
 type MemifDispatcher interface {
-	Socket(ctx context.Context, in *dispatcher.SocketMsg) (*dispatcher.ReplyMsg, error)
-	Intro(ctx context.Context, in *dispatcher.IntroMsg) (*dispatcher.ReplyMsg, error)
-	Connect(ctx context.Context, in *dispatcher.ConnectMsg) (*dispatcher.ReplyMsg, error)
-	Listen(ctx context.Context, in *dispatcher.ListenMsg) (*dispatcher.ReplyMsg, error)
+	Connect(ctx context.Context, in *dispatcher.ConnectMsg) (*dispatcher.SocketMsg, error)
+	Listen(ctx context.Context, in *dispatcher.ListenMsg) (*dispatcher.SocketMsg, error)
 }
 
 // NewMemifDispatcher returns new instance of a memif dispatcher
 func NewMemifDispatcher(logger *zap.SugaredLogger) MemifDispatcher {
-	clients := memifDispatcher{}
-	clients.Clients.Client = make(map[types.ID]map[types.Socket]types.State)
+	clients := memifDispatcher{
+		logger: logger,
+	}
+	clients.Clients.Clients = make(map[types.ID]types.Client)
 	return &clients
 }
 
@@ -29,22 +31,14 @@ type memifDispatcher struct {
 	logger *zap.SugaredLogger
 }
 
-func (m *memifDispatcher) Socket(ctx context.Context, in *dispatcher.SocketMsg) (*dispatcher.ReplyMsg, error) {
-	out := new(dispatcher.ReplyMsg)
-	return out, nil
+func (m *memifDispatcher) Connect(ctx context.Context, in *dispatcher.ConnectMsg) (*dispatcher.SocketMsg, error) {
+	m.logger.Infof("Connect request from pod: %s/%s", in.SrcId.PodNamespace, in.SrcId.PodName)
+	out := new(dispatcher.SocketMsg)
+	return out, status.Errorf(codes.Unavailable, "Connect has not been yet implemented")
 }
 
-func (m *memifDispatcher) Intro(ctx context.Context, in *dispatcher.IntroMsg) (*dispatcher.ReplyMsg, error) {
-	out := new(dispatcher.ReplyMsg)
-	return out, nil
-}
-
-func (m *memifDispatcher) Connect(ctx context.Context, in *dispatcher.ConnectMsg) (*dispatcher.ReplyMsg, error) {
-	out := new(dispatcher.ReplyMsg)
-	return out, nil
-}
-
-func (m *memifDispatcher) Listen(ctx context.Context, in *dispatcher.ListenMsg) (*dispatcher.ReplyMsg, error) {
-	out := new(dispatcher.ReplyMsg)
-	return out, nil
+func (m *memifDispatcher) Listen(ctx context.Context, in *dispatcher.ListenMsg) (*dispatcher.SocketMsg, error) {
+	m.logger.Infof("Listen request from pod: %s/%s", in.ListenerId.PodNamespace, in.ListenerId.PodName)
+	out := new(dispatcher.SocketMsg)
+	return out, status.Errorf(codes.Unavailable, "Connect has not been yet implemented")
 }

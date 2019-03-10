@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"net"
 	"os"
 
@@ -29,10 +30,11 @@ func init() {
 }
 
 func main() {
+	flag.Parse()
 	// Advertise via DPAPI
 
 	// Setting up gRPC server
-	listener, err := net.Listen("unix", "memif-dispatcher.sock")
+	listener, err := net.Listen("unix", "/var/lib/memif-dispatch/memif-dispatcher.sock")
 	if err != nil {
 		logger.Errorf("Failed to setup listener with error: %+v", err)
 	}
