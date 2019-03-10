@@ -29,6 +29,10 @@ func (m *memifDispatcher) listener(in *dispatcher.ListenMsg) (types.Socket, erro
 	if err != nil {
 		return types.Socket(0), status.Errorf(codes.Aborted, "Failed to allocate a socket with error: %+v", err)
 	}
+	client.LockListen()
+	defer client.UnlockListen()
+	// TODO: Need to figure out cleanup process
+	client.Listen[types.Socket(sock)] = types.Allocated
 
 	return types.Socket(sock), nil
 }
