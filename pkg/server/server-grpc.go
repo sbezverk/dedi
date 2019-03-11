@@ -37,7 +37,17 @@ type memifDispatcher struct {
 func (m *memifDispatcher) Connect(ctx context.Context, in *dispatcher.ConnectMsg) (*dispatcher.SocketMsg, error) {
 	m.logger.Infof("Connect request from pod: %s/%s", in.SrcId.PodNamespace, in.SrcId.PodName)
 	out := new(dispatcher.SocketMsg)
-	return out, status.Errorf(codes.Unavailable, "Connect has not been yet implemented")
+	out.PodId = in.SrcId
+
+	sock, err := m.connecter(in)
+	if err != nil {
+		out.Success = false
+		return out, status.Errorf(codes.Aborted, "Connect failed to obtain a socket with error: %+v", err)
+	}
+	out.Fd = int64(sock)
+	out.Success = true
+
+	return out, nil
 }
 
 // Listen is called when a clinet pod wants to get a memif socket to listen for incoming memif connections.
