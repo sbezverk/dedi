@@ -3,66 +3,35 @@ package server
 import (
 	"context"
 
-	"github.com/sbezverk/memif2memif/pkg/apis/dispatcher"
-	"github.com/sbezverk/memif2memif/pkg/types"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	api "github.com/sbezverk/memif2memif/pkg/apis/dispatcher"
 
 	"go.uber.org/zap"
 )
 
-// MemifDispatcher defines interface used to access MemifDispatcher data
-type MemifDispatcher interface {
-	Connect(ctx context.Context, in *dispatcher.ConnectMsg) (*dispatcher.SocketMsg, error)
-	Listen(ctx context.Context, in *dispatcher.ListenMsg) (*dispatcher.SocketMsg, error)
+type Dispatcher interface {
+	Connect(ctx context.Context, in *api.ConnectMsg) (*api.ReplyMsg, error)
+	Listen(ctx context.Context, in *api.ListenMsg) (*api.ReplyMsg, error)
 }
 
-// NewMemifDispatcher returns new instance of a memif dispatcher
-func NewMemifDispatcher(logger *zap.SugaredLogger) MemifDispatcher {
-	clients := memifDispatcher{
+func NewDispatcher(logger *zap.SugaredLogger) Dispatcher {
+	clients := dispatcher{
 		logger: logger,
 	}
-	clients.Clients.Clients = make(map[types.ID]*types.Client)
 	return &clients
 }
 
-// memifDispatcher internal struct for the dispatcher, storing clients with its sockets.
-type memifDispatcher struct {
-	types.Clients
+type dispatcher struct {
 	logger *zap.SugaredLogger
 }
 
-// Connect is called when a client pod wants to get a memif socket to connect to a memif enabled pod in
-// listening mode.
-func (m *memifDispatcher) Connect(ctx context.Context, in *dispatcher.ConnectMsg) (*dispatcher.SocketMsg, error) {
-	m.logger.Infof("Connect request from pod: %s/%s", in.SrcId.PodNamespace, in.SrcId.PodName)
-	out := new(dispatcher.SocketMsg)
-	out.PodId = in.SrcId
-
-	sock, err := m.connecter(in)
-	if err != nil {
-		out.Success = false
-		return out, status.Errorf(codes.Aborted, "Connect failed to obtain a socket with error: %+v", err)
-	}
-	out.Fd = int64(sock)
-	out.Success = true
+func (m *dispatcher) Connect(ctx context.Context, in *api.ConnectMsg) (*api.ReplyMsg, error) {
+	out := new(api.ReplyMsg)
 
 	return out, nil
 }
 
-// Listen is called when a clinet pod wants to get a memif socket to listen for incoming memif connections.
-func (m *memifDispatcher) Listen(ctx context.Context, in *dispatcher.ListenMsg) (*dispatcher.SocketMsg, error) {
-	m.logger.Infof("Listen request from pod: %s/%s", in.ListenerId.PodNamespace, in.ListenerId.PodName)
-	out := new(dispatcher.SocketMsg)
-	out.PodId = in.ListenerId
-
-	sock, err := m.listener(in)
-	if err != nil {
-		out.Success = false
-		return out, status.Errorf(codes.Aborted, "Listen failed to obtain a socket with error: %+v", err)
-	}
-	out.Fd = int64(sock)
-	out.Success = true
+func (m *dispatcher) Listen(ctx context.Context, in *api.ListenMsg) (*api.ReplyMsg, error) {
+	out := new(api.ReplyMsg)
 
 	return out, nil
 }

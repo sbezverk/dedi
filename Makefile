@@ -36,14 +36,14 @@ mac-server:
 	CGO_ENABLED=0 GOOS=darwin go build -a -ldflags '-extldflags "-static"' -o ./bin/server.mac ./cmd/server
 
 container: dispatcher client server
-	docker build -t $(REGISTRY_NAME)/memif-dispatch:$(IMAGE_VERSION) -f ./build/Dockerfile.dispatcher .
-	docker build -t $(REGISTRY_NAME)/memif-connect:$(IMAGE_VERSION) -f ./build/Dockerfile.client .
-	docker build -t $(REGISTRY_NAME)/memif-listen:$(IMAGE_VERSION) -f ./build/Dockerfile.server .
+	docker build -t $(REGISTRY_NAME)/dispatch:$(IMAGE_VERSION) -f ./build/Dockerfile.dispatcher .
+	docker build -t $(REGISTRY_NAME)/connect:$(IMAGE_VERSION) -f ./build/Dockerfile.client .
+	docker build -t $(REGISTRY_NAME)/listen:$(IMAGE_VERSION) -f ./build/Dockerfile.server .
 
 push: container
-	docker push $(REGISTRY_NAME)/memif-dispatch:$(IMAGE_VERSION)
-	docker push $(REGISTRY_NAME)/memif-connect:$(IMAGE_VERSION)
-	docker push $(REGISTRY_NAME)/memif-listen:$(IMAGE_VERSION)
+	docker push $(REGISTRY_NAME)/dispatch:$(IMAGE_VERSION)
+	docker push $(REGISTRY_NAME)/connect:$(IMAGE_VERSION)
+	docker push $(REGISTRY_NAME)/listen:$(IMAGE_VERSION)
 
 clean:
 	rm -rf bin

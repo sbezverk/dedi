@@ -2,39 +2,36 @@ syntax = "proto3";
 
 package dispatcher;
 
+// POD identifies pod requeesting connection or offering a service
+message POD { string pod_uuid = 1; }
 
-message ID {
-    string pod_name = 1;
-    string pod_namespace = 2;
-}
+// SVC describes Service
+message SVC { string svc_uuid = 1; }
 
-// Connect message is sent by the client which wants to build memif connection
-// to another pod which is in Listen mode.
 message ConnectMsg {
-    ID src_id = 1;
-    ID dst_id = 2;
+  POD pod_uuid = 1;
+  SVC svc_uuid = 2;
 }
 
-// Listen message is sent by the the client which wants to listen for incoming
-// memif connection. Usually a server type application.
 message ListenMsg {
-    ID listener_id = 1;
-    // max_supported_connections identifies a max number of connections supported by
-    // a specific listener.
-    int32 max_connections = 2;
+  POD pod_uuid = 1;
+  SVC svc_uuid = 2;
 }
 
-// Socket message is sent by the dispatcher to both client and server with the sockets
-// they have to use to build memif connection
-message SocketMsg {
-    ID pod_id = 1;
-    int64 fd = 2;
-    bool success = 3;
-    string extended_error = 4;
+message ReplyMsg {
+  POD pod_uuid = 1;
+  SVC svc_uuid = 2;
+  string socket = 3;
+  ERR error = 4;
+}
+
+enum ERR {
+  NO_ERROR = 0;
+  SVC_NOT_AVAILABLE = 1;
 }
 
 // Dispatcher side set of RPCs
 service Dispatcher {
-    rpc Connect (ConnectMsg) returns(SocketMsg);
-    rpc Listen (ListenMsg) returns(SocketMsg);
+  rpc Connect(ConnectMsg) returns (ReplyMsg);
+  rpc Listen(ListenMsg) returns (ReplyMsg);
 }

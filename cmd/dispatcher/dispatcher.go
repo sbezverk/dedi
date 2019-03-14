@@ -34,14 +34,14 @@ func main() {
 	// Advertise via DPAPI
 
 	// Setting up gRPC server
-	listener, err := net.Listen("unix", "/var/lib/memif-dispatch/memif-dispatcher.sock")
+	listener, err := net.Listen("unix", "/var/lib/dispatch/dispatcher.sock")
 	if err != nil {
 		logger.Errorf("Failed to setup listener with error", err)
 	}
 	srv := grpc.NewServer([]grpc.ServerOption{}...)
 
 	// Attaching Dispatcher API
-	dispatcher.RegisterDispatcherServer(srv, server.NewMemifDispatcher(logger))
+	dispatcher.RegisterDispatcherServer(srv, server.NewDispatcher(logger))
 
 	stopCh := signals.SetupSignalHandler()
 	logger.Infof("WIP Dispatcher is starting...")
