@@ -2,25 +2,20 @@ syntax = "proto3";
 
 package dispatcher;
 
-// POD identifies pod requeesting connection or offering a service
-message POD { string pod_uuid = 1; }
-
-// SVC describes Service
-message SVC { string svc_uuid = 1; }
 
 message ConnectMsg {
-  POD pod_uuid = 1;
-  SVC svc_uuid = 2;
+  string pod_uuid = 1;
+  string svc_uuid = 2;
 }
 
 message ListenMsg {
-  POD pod_uuid = 1;
-  SVC svc_uuid = 2;
+  string pod_uuid = 1;
+  string svc_uuid = 2;
 }
 
 message ReplyMsg {
-  POD pod_uuid = 1;
-  SVC svc_uuid = 2;
+  string pod_uuid = 1;
+  string svc_uuid = 2;
   string socket = 3;
   ERR error = 4;
 }

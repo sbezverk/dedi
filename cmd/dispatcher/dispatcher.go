@@ -44,7 +44,7 @@ func main() {
 	dispatcher.RegisterDispatcherServer(srv, server.NewDispatcher(logger))
 
 	stopCh := signals.SetupSignalHandler()
-	logger.Infof("WIP Dispatcher is starting...")
+	logger.Infof("Dispatcher is starting...")
 	go func() {
 		if err := srv.Serve(listener); err != nil {
 			logger.Errorw("Error running gRPC server", zap.Error(err))
