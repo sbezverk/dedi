@@ -12,22 +12,22 @@ spec:
     spec:
       containers:
         - name: dispatcher
-          image: docker.io/sbezverk/memif-dispatch:0.0.0
+          image: docker.io/sbezverk/dispatch:0.0.0
           imagePullPolicy: Always
           volumeMounts:
             - name: kubelet-socket
               mountPath: /var/lib/kubelet/device-plugins
-            - name: memif-socket
-              mountPath: /var/lib/memif-dispatch
+            - name: socket
+              mountPath: /var/lib/dispatch
       volumes:
         - hostPath:
             path: /var/lib/kubelet/device-plugins
             type: DirectoryOrCreate
           name: kubelet-socket
         - hostPath:
-            path: /var/lib/memif-dispatch
+            path: /var/lib/dispatch
             type: DirectoryOrCreate
-          name: memif-socket
+          name: socket
 metadata:
   name: dispatch
   namespace: default

@@ -12,7 +12,7 @@ spec:
         app: connect
     spec:
       containers:
-        - image: docker.io/sbezverk/memif-connect:0.0.0
+        - image: docker.io/sbezverk/connect:0.0.0
           name: connect
           imagePullPolicy: Always
           env:
@@ -25,13 +25,13 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
           volumeMounts:
-            - name: memif-socket
-              mountPath: /var/lib/memif-dispatch
+            - name: socket
+              mountPath: /var/lib/dispatch
       volumes:
         - hostPath:
-            path: /var/lib/memif-dispatch
+            path: /var/lib/dispatch
             type: DirectoryOrCreate
-          name: memif-socket
+          name: socket
 metadata:
   name: connect
   namespace: default

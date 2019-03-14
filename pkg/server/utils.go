@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"net"
-	"os"
 	"syscall"
 	"time"
 
@@ -20,24 +19,6 @@ func notAvailable(in *api.ConnectMsg, out *api.ReplyMsg) (*api.ReplyMsg, error) 
 	return out, status.Errorf(codes.Unavailable, "Connect failed, requested service %s is not available", in.SvcUuid)
 }
 
-func checkSocketReadiness(socket string) error {
-	ticker := time.NewTicker(retryInterval)
-	timeOut := time.NewTimer(socketReadyTimeout)
-	for {
-		fi, err := os.Stat(socket)
-		if err == nil && (fi.Mode()&os.ModeSocket) != 0 {
-			// File exists and it is a socket, all good..
-			return nil
-		}
-		select {
-		case <-ticker.C:
-			continue
-		case <-timeOut.C:
-			return fmt.Errorf("Timed out waiting for socket: %s to become ready", socket)
-		}
-	}
-}
-
 func sendMsg(socket string, socketControlMessage []byte) error {
 	uc, err := net.DialUnix("unixgram", nil, &net.UnixAddr{
 		Name: socket,
@@ -51,19 +32,6 @@ func sendMsg(socket string, socketControlMessage []byte) error {
 	fd := f.Fd()
 	if err := syscall.Sendmsg(int(fd), nil, socketControlMessage, nil, 0); err != nil {
 		return fmt.Errorf("Failed to SendMsg with error: %+v", err)
-	}
-	return nil
-}
-
-func socketCleanup(listenEndpoint string) error {
-	fi, err := os.Stat(listenEndpoint)
-	if err == nil && (fi.Mode()&os.ModeSocket) != 0 {
-		if err := os.Remove(listenEndpoint); err != nil {
-			return fmt.Errorf("cannot remove listen endpoint %s with error: %+v", listenEndpoint, err)
-		}
-	}
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failure stat of socket file %s with error: %+v", listenEndpoint, err)
 	}
 	return nil
 }

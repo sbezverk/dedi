@@ -12,8 +12,13 @@ import (
 	"github.com/knative/pkg/signals"
 	"github.com/sbezverk/memif2memif/pkg/apis/dispatcher"
 	"github.com/sbezverk/memif2memif/pkg/server"
+	"github.com/sbezverk/memif2memif/pkg/tools"
 
 	"go.uber.org/zap"
+)
+
+const (
+	dispatcherSocket = "/var/lib/dispatch/dispatcher.sock"
 )
 
 var (
@@ -33,10 +38,15 @@ func main() {
 	flag.Parse()
 	// Advertise via DPAPI
 
+	if err := tools.SocketCleanup(dispatcherSocket); err != nil {
+		logger.Errorf("Failed to cleaup stale socket with error: %+v", err)
+		os.Exit(1)
+	}
 	// Setting up gRPC server
-	listener, err := net.Listen("unix", "/var/lib/dispatch/dispatcher.sock")
+	listener, err := net.Listen("unix", dispatcherSocket)
 	if err != nil {
-		logger.Errorf("Failed to setup listener with error", err)
+		logger.Errorf("Failed to setup listener with error: %+v", err)
+		os.Exit(1)
 	}
 	srv := grpc.NewServer([]grpc.ServerOption{}...)
 

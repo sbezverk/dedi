@@ -12,7 +12,7 @@ spec:
         app: listen
     spec:
       containers:
-        - image: docker.io/sbezverk/memif-listen:0.0.0
+        - image: docker.io/sbezverk/listen:0.0.0
           name: connect
           imagePullPolicy: Always
           env:
@@ -26,12 +26,12 @@ spec:
                   fieldPath: metadata.name
           volumeMounts:
             - name: memif-socket
-              mountPath: /var/lib/memif-dispatch
+              mountPath: /var/lib/dispatch
       volumes:
         - hostPath:
-            path: /var/lib/memif-dispatch
+            path: /var/lib/dispatch
             type: DirectoryOrCreate
-          name: memif-socket
+          name: socket
 metadata:
   name: listen
   namespace: default

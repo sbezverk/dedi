@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	api "github.com/sbezverk/memif2memif/pkg/apis/dispatcher"
-
+	"github.com/sbezverk/memif2memif/pkg/tools"
 	"go.uber.org/zap"
 )
 
@@ -99,6 +99,7 @@ func (d *dispatcher) Connect(ctx context.Context, in *api.ConnectMsg) (*api.Repl
 // Listen implements Listen method, this method is called when a pod wants to offer a service
 // and to provide a file descriptor for connecting to this service.
 func (d *dispatcher) Listen(ctx context.Context, in *api.ListenMsg) (*api.ReplyMsg, error) {
+	d.logger.Infof("Service advertisement for service: %s from pod: %s", in.SvcUuid, in.PodUuid)
 	out := new(api.ReplyMsg)
 	// Check if it is first instance of a service, if not instantiate it
 	svc, ok := d.services[in.SvcUuid]
@@ -126,7 +127,7 @@ func (d *dispatcher) Listen(ctx context.Context, in *api.ListenMsg) (*api.ReplyM
 
 func (d *dispatcher) recvFD(svc service, svcID, pod, socket string) {
 	// Sanity cleanup of a possible stale socket files
-	if err := socketCleanup(socket); err != nil {
+	if err := tools.SocketCleanup(socket); err != nil {
 		d.logger.Errorf("recvFD: Service: %s Pod: %s error: %+v", svc, pod, err)
 		return
 	}
@@ -146,12 +147,14 @@ func (d *dispatcher) recvFD(svc service, svcID, pod, socket string) {
 	d.Lock()
 	defer d.Unlock()
 	d.services[svcID] = svc
+	d.logger.Infof("Service: %s from pod: %s has been registered", svcID, pod)
+	d.logger.Infof("Number of services in the store: %d", len(d.services))
 }
 
 func (d *dispatcher) sendFD(svc, pod, socket string) {
 	fd := d.services[svc][pod]
 	// Check and Wait for Socket readiness
-	if err := checkSocketReadiness(socket); err != nil {
+	if err := tools.CheckSocketReadiness(socket); err != nil {
 		// By some unknown reason, the client has not opened the socket
 		// within a timeout defined in socketReadyTimeout
 		// Marking socket as not used and killing go routine.
