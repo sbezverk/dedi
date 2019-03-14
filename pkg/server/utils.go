@@ -54,3 +54,43 @@ func sendMsg(socket string, socketControlMessage []byte) error {
 	}
 	return nil
 }
+
+func socketCleanup(listenEndpoint string) error {
+	fi, err := os.Stat(listenEndpoint)
+	if err == nil && (fi.Mode()&os.ModeSocket) != 0 {
+		if err := os.Remove(listenEndpoint); err != nil {
+			return fmt.Errorf("cannot remove listen endpoint %s with error: %+v", listenEndpoint, err)
+		}
+	}
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failure stat of socket file %s with error: %+v", listenEndpoint, err)
+	}
+	return nil
+}
+
+func openSocket(socket string) (int, error) {
+	uc, err := net.ListenUnixgram("unixgram", &net.UnixAddr{
+		Name: socket,
+		Net:  "unixgram",
+	})
+	if err != nil {
+		return 0, fmt.Errorf("Failed to listen on socket %s with error: %+v", socket, err)
+
+	}
+	// Limiting recvMsg wait time to timeout defined by recvTimeout
+	uc.SetDeadline(time.Now().Add(recvTimeout))
+	f, _ := uc.File()
+	fd := f.Fd()
+
+	return int(fd), nil
+}
+
+func recvMsg(sd int) ([]byte, error) {
+	buf := make([]byte, syscall.CmsgSpace(numberFDInMsg*4))
+
+	_, oobn, _, _, err := syscall.Recvmsg(sd, nil, buf, 0)
+	if err != nil {
+		return nil, err
+	}
+	return buf[:oobn], nil
+}
