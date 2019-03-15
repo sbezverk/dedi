@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -82,7 +83,7 @@ func main() {
 	fmt.Printf("n: %d oobn: %d rf: %0x source socket: %+v\n", n, oobn, rf, ss)
 	fmt.Printf("Received buffer: %+v\n", buf)
 	var msgs []syscall.SocketControlMessage
-	msgs, err = syscall.ParseSocketControlMessage(buf[:oobn])
+	msgs, err = syscall.ParseSocketControlMessage(buf)
 	if err != nil {
 		fmt.Printf("Failed to parse messages with error: %+v\n", err)
 		os.Exit(1)
@@ -104,13 +105,19 @@ func main() {
 	}
 	defer file.Close()
 	fmt.Printf("Created file object with name: %s \n", file.Name())
-	b := make([]byte, 4096)
-	l, err := file.Read(b)
+	fi, err := file.Stat()
+	if err != nil {
+		fmt.Printf("Failed to Stat service file: %s with error: %+v\n", file.Name(), err)
+		os.Exit(4)
+	}
+	fmt.Printf("File Stat returnd: %+v\n", fi)
+
+	b, err := ioutil.ReadAll(file)
 	if err != nil {
 		fmt.Printf("Failed to read service file: %s with error: %+v\n", file.Name(), err)
 		os.Exit(4)
 	}
-	fmt.Printf("Read: %d bytes from file: %s buffer: %s", l, file.Name(), string(b))
+	fmt.Printf("Read: %d bytes from file: %s buffer: %s", len(b), file.Name(), string(b))
 	stopCh := make(chan struct{})
 	<-stopCh
 }

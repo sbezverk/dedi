@@ -56,9 +56,9 @@ func openSocket(socket string) (int, error) {
 func recvMsg(sd int) ([]byte, error) {
 	buf := make([]byte, syscall.CmsgSpace(numberFDInMsg*4))
 
-	_, oobn, _, _, err := syscall.Recvmsg(sd, nil, buf, 0)
+	_, _, _, _, err := syscall.Recvmsg(sd, nil, buf, 0)
 	if err != nil {
 		return nil, err
 	}
-	return buf[:oobn], nil
+	return buf, nil
 }
