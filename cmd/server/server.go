@@ -47,6 +47,9 @@ func main() {
 		os.Exit(1)
 	}
 	defer t.Close()
+	// Writing some info into the file to read on the other side
+	t.WriteString(time.Now().String() + "\n")
+
 	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
 	defer cancel()
 	clientConn, err := dial(ctx, dispatcherSocket)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path"
 	"syscall"
 	"time"
 
@@ -87,6 +88,7 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("Received messages: %+v\n", msgs)
+
 	var allfds []int
 	for i := 0; i < len(msgs) && err == nil; i++ {
 		var msgfds []int
@@ -95,6 +97,20 @@ func main() {
 	}
 	fmt.Printf("Parsed right: %+v\n", allfds)
 
+	file := os.NewFile(uintptr(fd), path.Join("/tmp", connectMsg.SvcUuid))
+	if file == nil {
+		fmt.Printf("Failed to convert fd into a file.\n")
+		os.Exit(4)
+	}
+	defer file.Close()
+	fmt.Printf("Created file object with name: %s \n", file.Name())
+	b := make([]byte, 4096)
+	l, err := file.Read(b)
+	if err != nil {
+		fmt.Printf("Failed to read service file: %s with error: %+v\n", file.Name(), err)
+		os.Exit(4)
+	}
+	fmt.Printf("Read: %d bytes from file: %s buffer: %s", l, file.Name(), string(b))
 	stopCh := make(chan struct{})
 	<-stopCh
 }
