@@ -79,7 +79,8 @@ func main() {
 
 	n, oobn, rf, ss, err := syscall.Recvmsg(int(fd), nil, buf, 0)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Failed to Receive massage on socket %s with error: %+v\n", sock.Socket, err)
+		os.Exit(1)
 	}
 	fmt.Printf("n: %d oobn: %d rf: %0x source socket: %+v\n", n, oobn, rf, ss)
 	fmt.Printf("Received buffer: %+v\n", buf)
