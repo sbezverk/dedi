@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
 	"github.com/sbezverk/memif2memif/pkg/apis/dispatcher"
@@ -97,8 +98,10 @@ func main() {
 		allfds = append(allfds, msgfds...)
 	}
 	fmt.Printf("Parsed right: %+v\n", allfds)
+	uid := uuid.New().String()
+	fileName := connectMsg.SvcUuid + "-" + uid[len(uid)-8:]
 
-	file := os.NewFile(uintptr(fd), path.Join("/tmp", connectMsg.SvcUuid))
+	file := os.NewFile(uintptr(fd), path.Join("/tmp", fileName))
 	if file == nil {
 		fmt.Printf("Failed to convert fd into a file.\n")
 		os.Exit(4)

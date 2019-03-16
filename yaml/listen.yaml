@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - image: docker.io/sbezverk/listen:0.0.0
-          name: connect
+          name: listen
           imagePullPolicy: Always
           env:
             - name: POD_NAMESPACE
@@ -25,7 +25,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
           volumeMounts:
-            - name: memif-socket
+            - name: socket
               mountPath: /var/lib/dispatch
       volumes:
         - hostPath:

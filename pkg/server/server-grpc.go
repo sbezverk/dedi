@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	tempSocketBase = "/tmp"
+	tempSocketBase = "/var/lib/dispatch"
 	numberFDInMsg  = 1
 )
 
