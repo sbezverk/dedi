@@ -2,8 +2,10 @@ package server
 
 import (
 	"context"
+	"os"
 	"path"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -136,6 +138,12 @@ func (d *dispatcher) recvFD(svc service, svcID, pod, socket string) {
 		d.logger.Errorf("recvFD: Service: %s Pod: %s error: %+v", svc, pod, err)
 		return
 	}
+	defer func() {
+		// Closing Unix Domain Socket used to receive Descriptor
+		syscall.Close(sd)
+		// Removing socket file
+		os.Remove(socket)
+	}()
 	fd, err := recvMsg(sd)
 	if err != nil {
 		d.logger.Errorf("recvFD: Service: %s Pod: %s error: %+v", svc, pod, err)

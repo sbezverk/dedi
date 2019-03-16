@@ -70,11 +70,15 @@ func main() {
 		fmt.Printf("Failed to listen on socket %s with error: %+v\n", sock.Socket, err)
 		os.Exit(1)
 	}
-
 	f, _ := uc.File()
 	fd := f.Fd()
 	num := 1
-
+	defer func() {
+		// Closing Unix Domain Socket used to receive Descriptor
+		syscall.Close(int(fd))
+		// Removing socket file
+		os.Remove(sock.Socket)
+	}()
 	buf := make([]byte, syscall.CmsgSpace(num*4))
 
 	n, oobn, rf, ss, err := syscall.Recvmsg(int(fd), nil, buf, 0)
@@ -115,7 +119,7 @@ func main() {
 		os.Exit(4)
 	}
 	fmt.Printf("File Stat returnd: %+v\n", fi)
-
+	file.Seek(0, 0)
 	b, err := ioutil.ReadAll(file)
 	if err != nil {
 		fmt.Printf("Failed to read service file: %s with error: %+v\n", file.Name(), err)
