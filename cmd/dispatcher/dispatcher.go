@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/knative/pkg/signals"
-	"github.com/sbezverk/memif2memif/pkg/controller"
-	"github.com/sbezverk/memif2memif/pkg/server"
+	"github.com/sbezverk/dedi/pkg/controller"
+	"github.com/sbezverk/dedi/pkg/server"
 
 	"go.uber.org/zap"
 )

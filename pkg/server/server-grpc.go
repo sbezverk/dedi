@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	api "github.com/sbezverk/memif2memif/pkg/apis/dispatcher"
-	"github.com/sbezverk/memif2memif/pkg/tools"
+	api "github.com/sbezverk/dedi/pkg/apis/dispatcher"
+	"github.com/sbezverk/dedi/pkg/tools"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )

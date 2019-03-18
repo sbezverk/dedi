@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	api "github.com/sbezverk/memif2memif/pkg/apis/dispatcher"
+	api "github.com/sbezverk/dedi/pkg/apis/dispatcher"
 )
 
 func notAvailable(in *api.ConnectMsg, out *api.ReplyMsg) (*api.ReplyMsg, error) {

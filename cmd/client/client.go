@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
-	"github.com/sbezverk/memif2memif/pkg/apis/dispatcher"
+	"github.com/sbezverk/dedi/pkg/apis/dispatcher"
 
 	"go.uber.org/zap"
 )

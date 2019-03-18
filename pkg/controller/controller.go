@@ -8,7 +8,7 @@ import (
 	"time"
 	// "strings"
 	// "sync"
-	"github.com/sbezverk/memif2memif/pkg/tools"
+	"github.com/sbezverk/dedi/pkg/tools"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"

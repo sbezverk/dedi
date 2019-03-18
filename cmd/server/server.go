@@ -12,8 +12,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/sbezverk/memif2memif/pkg/apis/dispatcher"
-	"github.com/sbezverk/memif2memif/pkg/tools"
+	"github.com/sbezverk/dedi/pkg/apis/dispatcher"
+	"github.com/sbezverk/dedi/pkg/tools"
 
 	"go.uber.org/zap"
 )
