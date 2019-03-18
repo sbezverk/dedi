@@ -1,5 +1,5 @@
 # DeDi 
-## (*Descriptors Dispatcher*)
+## Descriptors Dispatcher
 
 WIP
 
