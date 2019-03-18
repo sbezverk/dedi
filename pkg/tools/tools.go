@@ -1,9 +1,12 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
+
+	"google.golang.org/grpc"
 )
 
 var (
@@ -45,4 +48,10 @@ func CheckSocketReadiness(socket string) error {
 			return fmt.Errorf("Timed out waiting for socket: %s to become ready", socket)
 		}
 	}
+}
+
+// Dial attempts to dial gRPC endpoint and return client connection
+func Dial(ctx context.Context, unixSocketPath string) (*grpc.ClientConn, error) {
+	c, err := grpc.DialContext(ctx, unixSocketPath, grpc.WithInsecure(), grpc.WithBlock())
+	return c, err
 }
