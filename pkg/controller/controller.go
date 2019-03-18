@@ -2,9 +2,8 @@ package controller
 
 import (
 	// "encoding/json"
-	// "fmt"
+	"fmt"
 	"net"
-	"os"
 	"path"
 	"time"
 	// "strings"
@@ -22,6 +21,7 @@ const (
 
 type resourceController struct {
 	socket   string
+	listener net.Listener
 	server   *grpc.Server
 	stopCh   chan struct{}
 	updateCh chan struct{}
@@ -35,57 +35,32 @@ type ResourceController interface {
 }
 
 // NewResourceController creates an instance of a new resourceCOntroller and returns its interface
-func NewResourceController(logger *zap.SugaredLogger, updateCh chan struct{}) ResourceController {
-	return &resourceController{
+func NewResourceController(logger *zap.SugaredLogger, updateCh chan struct{}) (ResourceController, error) {
+	var err error
+	c := resourceController{
 		logger:   logger,
 		stopCh:   make(chan struct{}),
 		updateCh: updateCh,
 	}
+	c.socket = path.Join(serverBasePath, "dispatch-resource-controller.sock")
+	// Preparing to start Resource Controller Device Plugin gRPC server
+	if err = tools.SocketCleanup(c.socket); err != nil {
+		return nil, fmt.Errorf("Failed to cleaup stale socket with error: %+v", err)
+	}
+	// Setting up gRPC server
+	c.listener, err = net.Listen("unix", c.socket)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to setup listener with error: %+v", err)
+	}
+	c.server = grpc.NewServer([]grpc.ServerOption{}...)
+	// Attaching Device Plugin API
+	pluginapi.RegisterDevicePluginServer(c.server, &c)
+
+	return &c, nil
 }
 
 func (rs *resourceController) Run() error {
-
-	return nil
-}
-
-func (rs *resourceController) Shutdown() {
-	// TODO add shutdown logic
-}
-
-func (rs *resourceController) startDevicePlugin() {
-
-	rs.socket = path.Join(serverBasePath, "dispatch-resource-controller.sock")
-
-	// starting gRPC server for kubelet's Allocate and ListAndWatch calls
-	rs.startServer()
-
-	rs.register()
-
-}
-
-func (rs *resourceController) GetDevicePluginOptions(context.Context, *pluginapi.Empty) (*pluginapi.DevicePluginOptions, error) {
-	return &pluginapi.DevicePluginOptions{}, nil
-}
-
-func (rs *resourceController) PreStartContainer(context.Context, *pluginapi.PreStartContainerRequest) (*pluginapi.PreStartContainerResponse, error) {
-	return &pluginapi.PreStartContainerResponse{}, nil
-}
-
-func (rs *resourceController) startServer() error {
-	err := rs.cleanup()
-	if err != nil {
-		return err
-	}
-
-	sock, err := net.Listen("unix", rs.socket)
-	if err != nil {
-		return err
-	}
-
-	rs.server = grpc.NewServer([]grpc.ServerOption{}...)
-	pluginapi.RegisterDevicePluginServer(rs.server, rs)
-
-	go rs.server.Serve(sock)
+	// Starting Resource Controller gRPC server Device Plugin Server
 
 	// Wait for server to start by launching a blocking connexion
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -96,15 +71,22 @@ func (rs *resourceController) startServer() error {
 	}
 	conn.Close()
 
+	// Register Device Plugin with Kubernetes' local kubelet
+
 	return nil
 }
 
-func (rs *resourceController) cleanup() error {
-	if err := os.Remove(rs.socket); err != nil && !os.IsNotExist(err) {
-		return err
-	}
+func (rs *resourceController) Shutdown() {
+	// TODO add shutdown logic
 
-	return nil
+}
+
+func (rs *resourceController) GetDevicePluginOptions(context.Context, *pluginapi.Empty) (*pluginapi.DevicePluginOptions, error) {
+	return &pluginapi.DevicePluginOptions{}, nil
+}
+
+func (rs *resourceController) PreStartContainer(context.Context, *pluginapi.PreStartContainerRequest) (*pluginapi.PreStartContainerResponse, error) {
+	return &pluginapi.PreStartContainerResponse{}, nil
 }
 
 func (rs *resourceController) register() error {
