@@ -52,6 +52,6 @@ func CheckSocketReadiness(socket string) error {
 
 // Dial attempts to dial gRPC endpoint and return client connection
 func Dial(ctx context.Context, unixSocketPath string) (*grpc.ClientConn, error) {
-	c, err := grpc.DialContext(ctx, unixSocketPath, grpc.WithInsecure(), grpc.WithBlock())
+	c, err := grpc.DialContext(ctx, "unix://"+unixSocketPath, grpc.WithInsecure(), grpc.WithBlock())
 	return c, err
 }

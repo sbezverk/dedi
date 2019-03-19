@@ -32,7 +32,6 @@ func init() {
 func main() {
 	flag.Parse()
 	updateCh := make(chan struct{})
-
 	dispatch, err := server.NewDispatcher(dispatcherSocket, logger, updateCh)
 	if err != nil {
 		logger.Errorf("Failed to instantiate Dispatcher with error: %+v", err)
@@ -45,22 +44,14 @@ func main() {
 			os.Exit(2)
 		}
 	}()
-
 	// Only run resource controller if registration to kubelet is required
 	var rc controller.ResourceController
 	logger.Infof("Registration with kubelet flag is set to: %t", *register)
 	if *register {
 		// Preparing dpapi controller
-		rc, err = controller.NewResourceController(logger, updateCh)
-		if err != nil {
-			logger.Errorf("Failed to instantiate Resource Controller with error: %+v", err)
-			os.Exit(3)
-		}
+		rc = controller.NewResourceController(logger, updateCh)
 		logger.Infof("Resource Controller is starting...")
-		if err := rc.Run(); err != nil {
-			logger.Errorw("Error running Resource Controller gRPC server", zap.Error(err))
-			os.Exit(4)
-		}
+		go rc.Run()
 	}
 	stopCh := signals.SetupSignalHandler()
 	<-stopCh

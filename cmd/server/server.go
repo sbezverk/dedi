@@ -10,8 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"google.golang.org/grpc"
-
 	"github.com/sbezverk/dedi/pkg/apis/dispatcher"
 	"github.com/sbezverk/dedi/pkg/tools"
 
@@ -19,7 +17,7 @@ import (
 )
 
 const (
-	dispatcherSocket = "unix:///var/lib/dispatch/dispatcher.sock"
+	dispatcherSocket = "/var/lib/dispatch/dispatcher.sock"
 )
 
 var (
@@ -56,7 +54,7 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
 	defer cancel()
-	clientConn, err := dial(ctx, dispatcherSocket)
+	clientConn, err := tools.Dial(ctx, dispatcherSocket)
 	if err != nil {
 		logger.Errorf("Failed to dial into Dispatcher with error: %+v", err)
 		os.Exit(1)
@@ -113,9 +111,4 @@ func main() {
 
 	stopCh := make(chan struct{})
 	<-stopCh
-}
-
-func dial(ctx context.Context, unixSocketPath string) (*grpc.ClientConn, error) {
-	c, err := grpc.DialContext(ctx, unixSocketPath, grpc.WithInsecure(), grpc.WithBlock())
-	return c, err
 }

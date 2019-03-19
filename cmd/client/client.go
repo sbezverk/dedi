@@ -12,15 +12,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"google.golang.org/grpc"
-
 	"github.com/sbezverk/dedi/pkg/apis/dispatcher"
+	"github.com/sbezverk/dedi/pkg/tools"
 
 	"go.uber.org/zap"
 )
 
 const (
-	dispatcherSocket = "unix:///var/lib/dispatch/dispatcher.sock"
+	dispatcherSocket = "/var/lib/dispatch/dispatcher.sock"
 )
 
 var (
@@ -41,16 +40,15 @@ func main() {
 	var err error
 	flag.Parse()
 	logger.Infof("Starting Connect...")
-
 	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
 	defer cancel()
-	clientConn, err := grpc.DialContext(ctx, dispatcherSocket, grpc.WithInsecure(), grpc.WithBlock())
+	clientConn, err := tools.Dial(ctx, dispatcherSocket)
 	if err != nil {
 		logger.Errorf("Failed to dial into Dispatcher with error: %+v", err)
 		os.Exit(1)
 	}
-	client := dispatcher.NewDispatcherClient(clientConn)
 
+	client := dispatcher.NewDispatcherClient(clientConn)
 	connectMsg := dispatcher.ConnectMsg{
 		PodUuid: "pod1",
 		SvcUuid: "service-2",
@@ -128,9 +126,4 @@ func main() {
 	fmt.Printf("Read: %d bytes from file: %s buffer: %s", len(b), file.Name(), string(b))
 	stopCh := make(chan struct{})
 	<-stopCh
-}
-
-func dial(ctx context.Context, unixSocketPath string) (*grpc.ClientConn, error) {
-	c, err := grpc.DialContext(ctx, unixSocketPath, grpc.WithInsecure(), grpc.WithBlock())
-	return c, err
 }
