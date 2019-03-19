@@ -61,7 +61,9 @@ func NewResourceController(logger *zap.SugaredLogger, updateCh chan struct{}) (R
 
 func (rs *resourceController) Run() error {
 	// Starting Resource Controller gRPC server Device Plugin Server
-
+	if err := rs.server.Serve(rs.listener); err != nil {
+		return err
+	}
 	// Wait for server to start by launching a blocking connexion
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -72,13 +74,12 @@ func (rs *resourceController) Run() error {
 	conn.Close()
 
 	// Register Device Plugin with Kubernetes' local kubelet
-
-	return nil
+	return register(rs.socket)
 }
 
 func (rs *resourceController) Shutdown() {
 	// TODO add shutdown logic
-
+	rs.server.Stop()
 }
 
 func (rs *resourceController) GetDevicePluginOptions(context.Context, *pluginapi.Empty) (*pluginapi.DevicePluginOptions, error) {
@@ -87,29 +88,6 @@ func (rs *resourceController) GetDevicePluginOptions(context.Context, *pluginapi
 
 func (rs *resourceController) PreStartContainer(context.Context, *pluginapi.PreStartContainerRequest) (*pluginapi.PreStartContainerResponse, error) {
 	return &pluginapi.PreStartContainerResponse{}, nil
-}
-
-func (rs *resourceController) register() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	conn, err := tools.Dial(ctx, pluginapi.KubeletSocket)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	client := pluginapi.NewRegistrationClient(conn)
-	reqt := &pluginapi.RegisterRequest{
-		Version:      pluginapi.Version,
-		Endpoint:     path.Base(rs.socket),
-		ResourceName: "dispatch-resource-controller",
-	}
-
-	_, err = client.Register(context.Background(), reqt)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (rs *resourceController) buildDeviceList(health string) []*pluginapi.Device {
@@ -163,10 +141,32 @@ func (rs *resourceController) Allocate(ctx context.Context, reqs *pluginapi.Allo
 			deviceSpec.ContainerPath = id
 			deviceSpec.Permissions = "rw"
 			response.Devices = append(response.Devices, &deviceSpec)
-			// Getting vfio device specific specifications and storing it in the slice. The slice
-			// will be marshalled into json and passed to requesting POD as a mount.
 		}
 		responses.ContainerResponses = append(responses.ContainerResponses, &response)
 	}
 	return &responses, nil
+}
+
+// register attempts to register Device Plugin with kubelet
+func register(socket string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn, err := tools.Dial(ctx, pluginapi.KubeletSocket)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := pluginapi.NewRegistrationClient(conn)
+	reqt := &pluginapi.RegisterRequest{
+		Version:      pluginapi.Version,
+		Endpoint:     path.Base(socket),
+		ResourceName: "dispatch-resource-controller",
+	}
+
+	_, err = client.Register(context.Background(), reqt)
+	if err != nil {
+		return err
+	}
+	return nil
 }
