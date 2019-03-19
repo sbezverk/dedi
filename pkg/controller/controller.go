@@ -92,26 +92,28 @@ func (rs *resourceController) PreStartContainer(context.Context, *pluginapi.PreS
 
 func (rs *resourceController) buildDeviceList(health string) []*pluginapi.Device {
 	deviceList := []*pluginapi.Device{}
-
-	device := pluginapi.Device{}
-	device.Health = health
-	deviceList = append(deviceList, &device)
-
+	// Always advertise to kubelet 100 instances of descriptor dispatcher
+	for i := 0; i < 100; i++ {
+		device := pluginapi.Device{}
+		device.ID = "dispatch-resource-controller"
+		device.Health = health
+		deviceList = append(deviceList, &device)
+	}
 	return deviceList
 }
 
-// ListAndWatch converts VFs into device and list them
+// ListAndWatch advertises to kubelet dispatcher as well as learned services
 func (rs *resourceController) ListAndWatch(e *pluginapi.Empty, d pluginapi.DevicePlugin_ListAndWatchServer) error {
 	d.Send(&pluginapi.ListAndWatchResponse{Devices: rs.buildDeviceList(pluginapi.Healthy)})
 	for {
 		select {
 		case <-rs.stopCh:
-			// Informing kubelet that VFs which belong to network service are not useable now
+			// Informing kubelet that disoatcher and learned services are not useable now
 			d.Send(&pluginapi.ListAndWatchResponse{
 				Devices: []*pluginapi.Device{}})
 			return nil
 		case <-rs.updateCh:
-			// Received a notification of a change in VFs resending updated list to kubelet
+			// Received a notification of a change in advertised services
 			d.Send(&pluginapi.ListAndWatchResponse{Devices: rs.buildDeviceList(pluginapi.Healthy)})
 		}
 	}
@@ -119,20 +121,12 @@ func (rs *resourceController) ListAndWatch(e *pluginapi.Empty, d pluginapi.Devic
 
 // Allocate which return list of devices.
 func (rs *resourceController) Allocate(ctx context.Context, reqs *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
-
 	responses := pluginapi.AllocateResponse{}
 	for _, req := range reqs.ContainerRequests {
 		response := pluginapi.ContainerAllocateResponse{
 			Devices: []*pluginapi.DeviceSpec{},
-			Envs:    map[string]string{
-				// key: path.Join(containerConfigFilePath, configFileName),
-			},
-			Mounts: []*pluginapi.Mount{
-				&pluginapi.Mount{
-					ContainerPath: "", // path.Join(containerConfigFilePath, configFileName),
-					HostPath:      "", // configFile.Name(),
-					ReadOnly:      true,
-				},
+			Envs: map[string]string{
+				"key": "dispatch-resource-controller",
 			},
 		}
 		for _, id := range req.DevicesIDs {
