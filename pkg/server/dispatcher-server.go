@@ -29,13 +29,16 @@ var (
 	msgSendInterval    = 5 * time.Second
 )
 
-// descriptor is struct storing informatiobn related to a specific service
+// descriptor is struct storing informatiobn related to a specific service instance
 type descriptor struct {
 	socketControlMessage []byte
 	maxConnections       int32
-	requestCh            chan struct{}
-	responseCh           chan bool
-	releaseCh            chan struct{}
+	//  requestCh is used to communicate a request from client for available descriptor
+	requestCh chan struct{}
+	// responseCh is used to indicate success or failure of the descriptor request
+	responseCh chan bool
+	// releaseCh is used to indicate when a client stopped using previsously allocated descriptor
+	releaseCh chan struct{}
 	sync.RWMutex
 	usedConnections int32
 }
@@ -61,6 +64,9 @@ func NewDispatcher(dispatcherSocket string, logger *zap.SugaredLogger, updateCh 
 		stopCh:   make(chan struct{}),
 		updateCh: updateCh,
 	}
+	// Instantiating a store, which is a map with primary key of Service ID, and secondary key
+	// process or pod id. Specific service could be offered by multiple pods/processes as long as
+	// their IDs are unique.
 	d.services.store = make(map[string]map[string]*descriptor)
 	// Preparing to start Dispatcher gRPC server
 	if err = tools.SocketCleanup(dispatcherSocket); err != nil {
@@ -82,14 +88,18 @@ type dispatcher struct {
 	server   *grpc.Server
 	listener net.Listener
 	stopCh   chan struct{}
+	// updateCh is used to communicate with controller manager to
+	// advertise availavble services via Device Plugin API
 	updateCh chan string
 	logger   *zap.SugaredLogger
+	// Services storage
 	services
 }
 
 // Shutdown shuts down dispatcher
 func (d *dispatcher) Shutdown() {
-	// TODO Add shutdown logic
+	// Shutting down gRPC server will force all currently active Listen/Connect
+	// go routine to fail on send and exit.
 	d.server.Stop()
 }
 
@@ -107,12 +117,9 @@ func (d *dispatcher) Connect(in *api.ConnectMsg, stream api.Dispatcher_ConnectSe
 	d.logger.Infof("Connect request for Service: %s from pod: %s", in.SvcUuid, in.PodUuid)
 
 	ticker := time.NewTicker(msgSendInterval)
-	// Finding required service loop
-	// There are 2 possibilities to exit this loop:
-	// 1  - Requested service already exists and it has available connections
-	// 2 - Client decides to bail upon receiving ERR_SVC_NOT_AVAILABLE
-	// Otherwise each msgSendInterval interval Services Store will be checked for required
-	// service availablelity and requesting client will get  ERR_SVC_NOT_AVAILABLE again.
+	// Finding required service/descriptor loop
+	// The code will loop and send  ERR_SVC_NOT_AVAILABLE to the client until, the requested service
+	// with available descripto is found, or a client that requested a service closes its side of the connection.
 	var sd *descriptor
 Loop:
 	for {
@@ -124,6 +131,7 @@ Loop:
 					d.logger.Infof("Connect: Found availavle descriptor for service: %s hosting pod: %s", in.SvcUuid, pod)
 					sd = desc
 					ticker.Stop()
+					//  Service and Descriptor are found, can break out of the loop
 					break Loop
 				}
 			}
@@ -132,6 +140,7 @@ Loop:
 		} else {
 			d.logger.Infof("Connect: Service %s not found", in.SvcUuid)
 		}
+		// Sending client ERR_SVC_NOT_AVAILABLE message and wait for another cycle
 		if err := stream.Send(&api.ReplyMsg{Error: api.ERR_SVC_NOT_AVAILABLE}); err != nil {
 			d.logger.Warnf("Connect: Pod: %s requested Service: %s terminated connection with error: %+v, exiting...", in.PodUuid, in.SvcUuid, err)
 			return err
@@ -142,11 +151,12 @@ Loop:
 			continue
 		}
 	}
-	// Since the descriptor has been selected and it is available, sending info to the requesting client
+
 	defer func() {
-		// If this function exists, releasing used desriptor
+		// If Connect function exists by any reasons, sending release message to free up used descriptor
 		sd.releaseCh <- struct{}{}
 	}()
+	// Sending socket path to the client
 	out := new(api.ReplyMsg)
 	uid := uuid.New().String()
 	out.Socket = path.Join(tempSocketBase, in.SvcUuid+"-"+uid[len(uid)-8:])
@@ -155,14 +165,15 @@ Loop:
 		d.logger.Warnf("Connect: Failed to send Pod: %s Service: %s Socket message with error: %+v, exiting...", in.PodUuid, in.SvcUuid, err)
 		return err
 	}
-	// Starting go routine to communicate with Connect
-	// requested pod to pass FD and rights
+	// Sending Descriptor over previosuly communicated socket
 	if err := d.sendDescr(in.SvcUuid, sd, out.Socket); err != nil {
 		d.logger.Warnf("Connect: Failed to send descriptor to Pod: %s for Service: %s with error: %+v, exiting...", in.PodUuid, in.SvcUuid, err)
 		return err
 	}
 
-	// Connection liveness timer
+	// At this point the client received Descriptor and can communicate with it is service, the following for loop
+	// checks liveness of the client and if the connection is dropped, this go routine is terminated.
+	// Defered  call will free up used descriptor
 	ticker = time.NewTicker(msgSendInterval)
 	for {
 		if err := stream.Send(&api.ReplyMsg{Error: api.ERR_KEEPALIVE}); err != nil {
@@ -230,7 +241,6 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 			continue
 			//
 		case <-nd.requestCh:
-			d.logger.Infof("Listen: Message on request channel usedConnection: %d maxConnections: %d", nd.usedConnections, nd.maxConnections)
 			if nd.usedConnections >= nd.maxConnections {
 				nd.responseCh <- false
 			} else {
@@ -239,9 +249,9 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 				nd.Unlock()
 				nd.responseCh <- true
 			}
+		case <-nd.releaseCh:
 			// When Descriptor consumer termoinates, its go routine sends a message over descriptor relaseCh
 			// upon receiving such message decrement number of used connections.
-		case <-nd.releaseCh:
 			nd.Lock()
 			nd.usedConnections--
 			if nd.usedConnections < 0 {
@@ -249,6 +259,7 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 			}
 			nd.Unlock()
 		}
+		d.logger.Infof("Listen: Service: %s used/max %d/%d connections", in.SvcUuid, nd.usedConnections, nd.maxConnections)
 	}
 }
 
