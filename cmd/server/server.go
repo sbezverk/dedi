@@ -83,18 +83,18 @@ func main() {
 
 	rights := syscall.UnixRights(int(t.Fd()))
 
-	fmt.Printf("File descriptor: %d\n", int(t.Fd()))
+	logger.Infof("File descriptor: %d", int(t.Fd()))
 	fi, err := t.Stat()
 	if err != nil {
-		fmt.Printf("Failed to Stat service file: %s with error: %+v\n", t.Name(), err)
+		logger.Errorf("Failed to Stat service file: %s with error: %+v", t.Name(), err)
 		os.Exit(4)
 	}
-	fmt.Printf("File Stat returnd: %+v\n", fi)
+	logger.Infof("File Stat returnd: %+v", fi)
 
-	fmt.Printf("Encoded Socket Control Messages: %+v\n", rights)
+	logger.Infof("Encoded Socket Control Messages: %+v", rights)
 
 	if err := tools.CheckSocketReadiness(sock.Socket); err != nil {
-		fmt.Printf("Failed to wait for the  socket %s to become ready with error: %+v\n", sock.Socket, err)
+		logger.Errorf("Failed to wait for the  socket %s to become ready with error: %+v", sock.Socket, err)
 		os.Exit(2)
 	}
 	// Bundle it into a library call
@@ -103,16 +103,16 @@ func main() {
 		Net:  "unixgram",
 	})
 	if err != nil {
-		fmt.Printf("Failed to Dial socket %s with error: %+v\n", sock.Socket, err)
+		logger.Errorf("Failed to Dial socket %s with error: %+v", sock.Socket, err)
 		os.Exit(2)
 	}
 	f, _ := uc.File()
 	fd := f.Fd()
 	if err := syscall.Sendmsg(int(fd), nil, rights, nil, 0); err != nil {
-		fmt.Printf("Failed to SendMsg with error: %+v\n", err)
+		logger.Errorf("Failed to SendMsg with error: %+v", err)
 		os.Exit(3)
 	}
-	fmt.Printf("All good!\n")
+	logger.Infof("All good!")
 
 	stopCh := make(chan struct{})
 	<-stopCh
@@ -124,6 +124,6 @@ func connectionHandler(stream dispatcher.Dispatcher_ListenClient) {
 		if err != nil {
 			return
 		}
-		fmt.Printf("Received message: %+v\n", *msg)
+		logger.Infof("Received message: %+v\n", *msg)
 	}
 }

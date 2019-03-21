@@ -114,24 +114,31 @@ func (d *dispatcher) Connect(in *api.ConnectMsg, stream api.Dispatcher_ConnectSe
 	// Otherwise each msgSendInterval interval Services Store will be checked for required
 	// service availablelity and requesting client will get  ERR_SVC_NOT_AVAILABLE again.
 	var sd *descriptor
-	for sd != nil {
+Loop:
+	for {
 		if _, ok := d.services.store[in.SvcUuid]; ok {
+			d.logger.Infof("Connect: Service %s found", in.SvcUuid)
 			for pod, desc := range d.services.store[in.SvcUuid] {
 				desc.requestCh <- struct{}{}
 				if <-desc.responseCh {
 					d.logger.Infof("Connect: Found availavle descriptor for service: %s hosting pod: %s", in.SvcUuid, pod)
 					sd = desc
-					continue
+					ticker.Stop()
+					break Loop
 				}
 			}
+			d.logger.Infof("Connect: Service %s found but no available connections", in.SvcUuid)
+
+		} else {
+			d.logger.Infof("Connect: Service %s not found", in.SvcUuid)
 		}
 		if err := stream.Send(&api.ReplyMsg{Error: api.ERR_SVC_NOT_AVAILABLE}); err != nil {
 			d.logger.Warnf("Connect: Pod: %s requested Service: %s terminated connection with error: %+v, exiting...", in.PodUuid, in.SvcUuid, err)
 			return err
 		}
+		d.logger.Infof("Connect: Sent client SVC_NOT_AVAILABLE")
 		select {
 		case <-ticker.C:
-			ticker.Stop()
 			continue
 		}
 	}
@@ -141,9 +148,13 @@ func (d *dispatcher) Connect(in *api.ConnectMsg, stream api.Dispatcher_ConnectSe
 		sd.releaseCh <- struct{}{}
 	}()
 	out := new(api.ReplyMsg)
-	// Check if requested service has already been registered
 	uid := uuid.New().String()
 	out.Socket = path.Join(tempSocketBase, in.SvcUuid+"-"+uid[len(uid)-8:])
+	out.Error = api.ERR_NO_ERROR
+	if err := stream.Send(out); err != nil {
+		d.logger.Warnf("Connect: Failed to send Pod: %s Service: %s Socket message with error: %+v, exiting...", in.PodUuid, in.SvcUuid, err)
+		return err
+	}
 	// Starting go routine to communicate with Connect
 	// requested pod to pass FD and rights
 	if err := d.sendDescr(in.SvcUuid, sd, out.Socket); err != nil {
@@ -207,7 +218,7 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 	ticker := time.NewTicker(msgSendInterval)
 	for {
 		if err := stream.Send(&api.ReplyMsg{Error: api.ERR_KEEPALIVE}); err != nil {
-			d.logger.Warnf("listenHandler: Connection with %s has been lost with error: %+v, removing [%s/%s] from the store.",
+			d.logger.Warnf("Listen: Connection with %s has been lost with error: %+v, removing [%s/%s] from the store.",
 				in.PodUuid, err, in.PodUuid, in.SvcUuid)
 			d.services.Lock()
 			defer d.services.Unlock()
@@ -219,6 +230,7 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 			continue
 			//
 		case <-nd.requestCh:
+			d.logger.Infof("Listen: Message on request channel usedConnection: %d maxConnections: %d", nd.usedConnections, nd.maxConnections)
 			if nd.usedConnections >= nd.maxConnections {
 				nd.responseCh <- false
 			} else {

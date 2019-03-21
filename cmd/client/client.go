@@ -53,11 +53,23 @@ func main() {
 		PodUuid: "pod1",
 		SvcUuid: "service-2",
 	}
-
-	sock, err := client.Connect(context.Background(), &connectMsg)
+	stream, err := client.Connect(context.Background(), &connectMsg)
 	if err != nil {
 		logger.Errorf("Failed to receive socket message from Dispatcher with error: %+v", err)
 		os.Exit(1)
+	}
+
+	var sock *dispatcher.ReplyMsg
+	for {
+		sock, err = stream.Recv()
+		if err != nil {
+			logger.Errorf("Failed to receive socket message from Dispatcher with error: %+v", err)
+			os.Exit(1)
+		}
+		logger.Infof("Received message: %+v", sock)
+		if err == nil && sock.Error == dispatcher.ERR_NO_ERROR {
+			break
+		}
 	}
 
 	uc, err := net.ListenUnixgram("unixgram", &net.UnixAddr{
