@@ -25,6 +25,8 @@ const (
 var (
 	logger      *zap.SugaredLogger
 	dialTimeout = 30 * time.Second
+	svcID       = flag.String("svc-id", "service-1", "Service ID to request from Dispatcher")
+	podID       = flag.String("pod-id", "pod-1", "Identity to use for a request")
 )
 
 func init() {
@@ -50,8 +52,8 @@ func main() {
 
 	client := dispatcher.NewDispatcherClient(clientConn)
 	connectMsg := dispatcher.ConnectMsg{
-		PodUuid: "pod1",
-		SvcUuid: "service-2",
+		PodUuid: *podID,
+		SvcUuid: *svcID,
 	}
 	stream, err := client.Connect(context.Background(), &connectMsg)
 	if err != nil {

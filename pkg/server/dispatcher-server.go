@@ -145,7 +145,6 @@ Loop:
 			d.logger.Warnf("Connect: Pod: %s requested Service: %s terminated connection with error: %+v, exiting...", in.PodUuid, in.SvcUuid, err)
 			return err
 		}
-		d.logger.Infof("Connect: Sent client SVC_NOT_AVAILABLE")
 		select {
 		case <-ticker.C:
 			continue

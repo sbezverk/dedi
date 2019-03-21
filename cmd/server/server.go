@@ -23,6 +23,8 @@ const (
 var (
 	logger      *zap.SugaredLogger
 	dialTimeout = 30 * time.Second
+	svcID       = flag.String("svc-id", "service-1", "Service ID to register with Dispatcher.")
+	podID       = flag.String("pod-id", "pod-1", "POD ID to register with Dispatcher.")
 )
 
 func init() {
@@ -62,8 +64,8 @@ func main() {
 	client := dispatcher.NewDispatcherClient(clientConn)
 
 	listenMsg := dispatcher.ListenMsg{
-		PodUuid:        "pod2",
-		SvcUuid:        "service-2",
+		PodUuid:        *podID,
+		SvcUuid:        *svcID,
 		MaxConnections: int32(1000),
 	}
 
@@ -120,10 +122,9 @@ func main() {
 
 func connectionHandler(stream dispatcher.Dispatcher_ListenClient) {
 	for {
-		msg, err := stream.Recv()
+		_, err := stream.Recv()
 		if err != nil {
 			return
 		}
-		logger.Infof("Received message: %+v\n", *msg)
 	}
 }
