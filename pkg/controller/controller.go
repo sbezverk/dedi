@@ -14,7 +14,7 @@ type resource struct {
 type resourceController struct {
 	logger    *zap.SugaredLogger
 	stopCh    chan struct{}
-	updateCh  chan struct{}
+	updateCh  chan string
 	resources map[string]resource
 }
 
@@ -25,7 +25,7 @@ type ResourceController interface {
 }
 
 // NewResourceController creates an instance of a new resourceCOntroller and returns its interface
-func NewResourceController(logger *zap.SugaredLogger, updateCh chan struct{}) ResourceController {
+func NewResourceController(logger *zap.SugaredLogger, updateCh chan string) ResourceController {
 	return &resourceController{
 		logger:   logger,
 		stopCh:   make(chan struct{}),
@@ -37,7 +37,7 @@ func (rc *resourceController) Run() {
 	for {
 		select {
 		case msg := <-rc.updateCh:
-			rc.logger.Infof("Received update message from Dispatcher: %+v", msg)
+			rc.logger.Infof("Received update message from Dispatcher: %s", msg)
 		case <-rc.stopCh:
 			rc.logger.Infof("Received Shutdown message, shutting down...")
 			rc.Shutdown()

@@ -62,22 +62,27 @@ func main() {
 	client := dispatcher.NewDispatcherClient(clientConn)
 
 	listenMsg := dispatcher.ListenMsg{
-		PodUuid: "pod2",
-		SvcUuid: "service-2",
+		PodUuid:        "pod2",
+		SvcUuid:        "service-2",
+		MaxConnections: int32(1000),
 	}
 
 	// Getting Unix Domain Socket for SendMsg via Listen gRPC call.
-	sock, err := client.Listen(context.Background(), &listenMsg)
+	stream, err := client.Listen(context.Background(), &listenMsg)
 	if err != nil {
 		logger.Errorf("Failed to receive socket message from Dispatcher with error: %+v", err)
 		os.Exit(1)
 	}
 
-	//	var fds []int
-	//	fds = append(fds, int(t.Fd()))
-	//	rights := syscall.UnixRights(fds...)
+	sock, err := stream.Recv()
+	if err != nil {
+		logger.Errorf("Failed to receive socket message from Dispatcher with error: %+v", err)
+		os.Exit(1)
+	}
+	go connectionHandler(stream)
+
 	rights := syscall.UnixRights(int(t.Fd()))
-	// fmt.Printf("File descriptors: %+v\n", fds)
+
 	fmt.Printf("File descriptor: %d\n", int(t.Fd()))
 	fi, err := t.Stat()
 	if err != nil {
@@ -111,4 +116,14 @@ func main() {
 
 	stopCh := make(chan struct{})
 	<-stopCh
+}
+
+func connectionHandler(stream dispatcher.Dispatcher_ListenClient) {
+	for {
+		msg, err := stream.Recv()
+		if err != nil {
+			return
+		}
+		fmt.Printf("Received message: %+v\n", *msg)
+	}
 }

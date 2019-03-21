@@ -11,6 +11,7 @@ message ConnectMsg {
 message ListenMsg {
   string pod_uuid = 1;
   string svc_uuid = 2;
+  int32 max_connections = 3;
 }
 
 message ReplyMsg {
@@ -23,10 +24,11 @@ message ReplyMsg {
 enum ERR {
   NO_ERROR = 0;
   SVC_NOT_AVAILABLE = 1;
+  KEEPALIVE = 2;
 }
 
 // Dispatcher side set of RPCs
 service Dispatcher {
-  rpc Connect(ConnectMsg) returns (ReplyMsg);
-  rpc Listen(ListenMsg) returns (ReplyMsg);
+  rpc Connect(ConnectMsg) returns (stream ReplyMsg);
+  rpc Listen(ListenMsg) returns (stream ReplyMsg);
 }
