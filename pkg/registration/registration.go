@@ -3,8 +3,8 @@ package registration
 import (
 	"fmt"
 	"net"
+	"os"
 	"path"
-	"strconv"
 	"time"
 
 	"github.com/sbezverk/dedi/pkg/tools"
@@ -19,12 +19,14 @@ const (
 )
 
 type resourceManager struct {
-	socket   string
-	listener net.Listener
-	server   *grpc.Server
-	stopCh   chan struct{}
-	updateCh chan struct{}
-	logger   *zap.SugaredLogger
+	svcID                string
+	socket               string
+	listener             net.Listener
+	server               *grpc.Server
+	stopCh               chan struct{}
+	connectionUpdateCh   chan int
+	logger               *zap.SugaredLogger
+	availableConnections int32
 }
 
 // ResourceManager is interface to access resourceController resources
@@ -34,18 +36,16 @@ type ResourceManager interface {
 }
 
 // NewResourceManager creates an instance of a new resourceCOntroller and returns its interface
-func NewResourceManager(logger *zap.SugaredLogger, updateCh chan struct{}) (ResourceManager, error) {
+func NewResourceManager(svcID string, logger *zap.SugaredLogger, connectionUpdateCh chan int, availableConnections int32) (ResourceManager, error) {
 	var err error
 	rm := resourceManager{
-		logger:   logger,
-		stopCh:   make(chan struct{}),
-		updateCh: updateCh,
+		svcID:                svcID,
+		logger:               logger,
+		stopCh:               make(chan struct{}),
+		connectionUpdateCh:   connectionUpdateCh,
+		availableConnections: availableConnections,
 	}
-	rm.socket = path.Join(serverBasePath, "dispatch-resource-controller.sock")
-	// Preparing to start Resource Controller Device Plugin gRPC server
-	if err = tools.SocketCleanup(rm.socket); err != nil {
-		return nil, fmt.Errorf("Failed to cleaup stale socket with error: %+v", err)
-	}
+	rm.socket = path.Join(serverBasePath, fmt.Sprintf("dedi-%s.sock", svcID))
 	// Setting up gRPC server
 	rm.listener, err = net.Listen("unix", rm.socket)
 	if err != nil {
@@ -76,16 +76,20 @@ func (rm *resourceManager) Run() error {
 		return err
 	}
 	defer conn.Close()
-	rm.logger.Infof("Resource Controller gRPC server is ready and operational.")
+	rm.logger.Infof("Resource Manager gRPC server for service: %s is operational.", rm.svcID)
 	// Register Device Plugin with Kubernetes' local kubelet
-	return register("dedi.io/dispatcher", rm.socket, rm.logger)
+	return register("dedi.io/"+rm.svcID, rm.socket, rm.logger)
 }
 
 func (rm *resourceManager) Shutdown() {
 	// Sending message to StopCh so Resource Controller withdraws resource advertisements
 	rm.stopCh <- struct{}{}
+	// Waiting for a close from ListAndWatch before shutting down gRPC
+	<-rm.stopCh
 	// Stopping gRPC server
 	rm.server.Stop()
+	// Cleaning up used socket file
+	os.Remove(rm.socket)
 }
 
 func (rm *resourceManager) GetDevicePluginOptions(context.Context, *pluginapi.Empty) (*pluginapi.DevicePluginOptions, error) {
@@ -99,9 +103,9 @@ func (rm *resourceManager) PreStartContainer(context.Context, *pluginapi.PreStar
 func (rm *resourceManager) buildDeviceList(health string) []*pluginapi.Device {
 	deviceList := []*pluginapi.Device{}
 	// Always advertise to kubelet 100 instances of descriptor dispatcher
-	for i := 0; i < 100; i++ {
+	for i := int32(0); i < rm.availableConnections; i++ {
 		device := pluginapi.Device{}
-		device.ID = "dispatcher-" + strconv.Itoa(i)
+		device.ID = fmt.Sprintf("%s-%d", rm.svcID, i)
 		device.Health = health
 		deviceList = append(deviceList, &device)
 	}
@@ -117,11 +121,11 @@ func (rm *resourceManager) ListAndWatch(e *pluginapi.Empty, d pluginapi.DevicePl
 		case <-rm.stopCh:
 			// Informing kubelet that disoatcher and learned services are not useable now
 			rm.logger.Info("Resource Controller has received shutdown message, withdraw resource advertisements.")
-			d.Send(&pluginapi.ListAndWatchResponse{
-				Devices: []*pluginapi.Device{}})
+			close(rm.stopCh)
 			return nil
-		case <-rm.updateCh:
+		case newConnections := <-rm.connectionUpdateCh:
 			// Received a notification of a change in advertised services
+			rm.availableConnections = int32(newConnections)
 			d.Send(&pluginapi.ListAndWatchResponse{Devices: rm.buildDeviceList(pluginapi.Healthy)})
 		}
 	}

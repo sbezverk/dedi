@@ -4,6 +4,7 @@ import (
 	"github.com/sbezverk/dedi/pkg/registration"
 	"github.com/sbezverk/dedi/pkg/types"
 	"go.uber.org/zap"
+	"sync"
 )
 
 type resource struct {
@@ -14,10 +15,11 @@ type resource struct {
 }
 
 type resourceController struct {
-	logger    *zap.SugaredLogger
-	stopCh    chan struct{}
-	updateCh  chan types.UpdateOp
-	resources map[string]resource
+	logger   *zap.SugaredLogger
+	stopCh   chan struct{}
+	updateCh chan types.UpdateOp
+	sync.RWMutex
+	resources map[string]*resource
 }
 
 // ResourceController is interface to access resourceController resources
@@ -29,9 +31,10 @@ type ResourceController interface {
 // NewResourceController creates an instance of a new resourceCOntroller and returns its interface
 func NewResourceController(logger *zap.SugaredLogger, updateCh chan types.UpdateOp) ResourceController {
 	return &resourceController{
-		logger:   logger,
-		stopCh:   make(chan struct{}),
-		updateCh: updateCh,
+		logger:    logger,
+		stopCh:    make(chan struct{}),
+		updateCh:  updateCh,
+		resources: make(map[string]*resource),
 	}
 }
 
@@ -48,7 +51,15 @@ func (rc *resourceController) Run() {
 }
 
 func (rc *resourceController) Shutdown() {
-
+	// Loop through all resources and update available connections to 0
+	// to give time to update kubelet's available resources
+	for _, resource := range rc.resources {
+		resource.connectionsUpdateCh <- 0
+	}
+	// Loop through all resources and shut them down
+	for _, resource := range rc.resources {
+		resource.rm.Shutdown()
+	}
 }
 
 func (rc *resourceController) handleUpdate(msg types.UpdateOp) {
@@ -72,13 +83,36 @@ func (rc *resourceController) addService(msg types.UpdateOp) {
 	if _, ok := rc.resources[msg.ServiceID]; ok {
 		return
 	}
+	connectionUpdateCh := make(chan int)
+	rm, err := registration.NewResourceManager(msg.ServiceID, rc.logger, connectionUpdateCh, msg.AvailableConnections)
+	if err != nil {
+		rc.logger.Errorf("addService: Failed to add service %s with error: %+v", msg.ServiceID, err)
+		return
+	}
+	r := resource{
+		stopCh:              make(chan struct{}),
+		connectionsUpdateCh: connectionUpdateCh,
+		rm:                  rm,
+	}
+	rc.Lock()
+	rc.resources[msg.ServiceID] = &r
+	rc.Unlock()
+	// Starting Resource Manager for msg.ServiceID service
+	go func() {
+		if err := rc.resources[msg.ServiceID].rm.Run(); err != nil {
+			rc.logger.Errorf("addService: Failed to start Resource Manager for service %s with error: %+v", msg.ServiceID, err)
+			return
+		}
+	}()
 }
 
 func (rc *resourceController) deleteService(msg types.UpdateOp) {
 	// Check if the service with this ID does not exist, do nothing if it does not
-	if _, ok := rc.resources[msg.ServiceID]; !ok {
+	r, ok := rc.resources[msg.ServiceID]
+	if !ok {
 		return
 	}
+	r.rm.Shutdown()
 }
 
 func (rc *resourceController) updateService(msg types.UpdateOp) {
