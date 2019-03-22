@@ -7,6 +7,7 @@ import (
 	"github.com/knative/pkg/signals"
 	"github.com/sbezverk/dedi/pkg/controller"
 	"github.com/sbezverk/dedi/pkg/server"
+	"github.com/sbezverk/dedi/pkg/types"
 
 	"go.uber.org/zap"
 )
@@ -31,7 +32,7 @@ func init() {
 
 func main() {
 	flag.Parse()
-	updateCh := make(chan string)
+	updateCh := make(chan types.UpdateOp)
 	dispatch, err := server.NewDispatcher(dispatcherSocket, logger, updateCh)
 	if err != nil {
 		logger.Errorf("Failed to instantiate Dispatcher with error: %+v", err)

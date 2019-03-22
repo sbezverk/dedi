@@ -2,19 +2,21 @@ package controller
 
 import (
 	"github.com/sbezverk/dedi/pkg/registration"
+	"github.com/sbezverk/dedi/pkg/types"
 	"go.uber.org/zap"
 )
 
 type resource struct {
-	stopCh   chan struct{}
-	updateCh chan struct{}
-	rm       registration.ResourceManager
+	stopCh chan struct{}
+	// connectionsUpdateCh is used to communicate any changes in number of available connections
+	connectionsUpdateCh chan int
+	rm                  registration.ResourceManager
 }
 
 type resourceController struct {
 	logger    *zap.SugaredLogger
 	stopCh    chan struct{}
-	updateCh  chan string
+	updateCh  chan types.UpdateOp
 	resources map[string]resource
 }
 
@@ -25,7 +27,7 @@ type ResourceController interface {
 }
 
 // NewResourceController creates an instance of a new resourceCOntroller and returns its interface
-func NewResourceController(logger *zap.SugaredLogger, updateCh chan string) ResourceController {
+func NewResourceController(logger *zap.SugaredLogger, updateCh chan types.UpdateOp) ResourceController {
 	return &resourceController{
 		logger:   logger,
 		stopCh:   make(chan struct{}),

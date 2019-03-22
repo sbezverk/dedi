@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	api "github.com/sbezverk/dedi/pkg/apis/dispatcher"
+	"github.com/sbezverk/dedi/pkg/types"
 )
 
 func notAvailable(in *api.ConnectMsg, out *api.ReplyMsg) (*api.ReplyMsg, error) {
@@ -61,4 +62,21 @@ func recvMsg(sd int) ([]byte, error) {
 		return nil, err
 	}
 	return buf, nil
+}
+
+func sendUpdate(updateCh chan types.UpdateOp, op types.Operation, svcID string, maxConnections, availableConnections int32) {
+	update := types.UpdateOp{
+		ServiceID: svcID,
+	}
+	switch op {
+	case types.Add:
+		update.Op = types.Add
+		update.MaxConnections = maxConnections
+	case types.Delete:
+		update.Op = types.Delete
+	case types.Update:
+		update.Op = types.Update
+		update.AvailableConnections = availableConnections
+	}
+	updateCh <- update
 }

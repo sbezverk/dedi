@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	api "github.com/sbezverk/dedi/pkg/apis/dispatcher"
 	"github.com/sbezverk/dedi/pkg/tools"
+	"github.com/sbezverk/dedi/pkg/types"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -56,7 +57,7 @@ type Dispatcher interface {
 }
 
 // NewDispatcher returns a new instance of a dispatcher service
-func NewDispatcher(dispatcherSocket string, logger *zap.SugaredLogger, updateCh chan string) (Dispatcher, error) {
+func NewDispatcher(dispatcherSocket string, logger *zap.SugaredLogger, updateCh chan types.UpdateOp) (Dispatcher, error) {
 	var err error
 
 	d := dispatcher{
@@ -90,7 +91,7 @@ type dispatcher struct {
 	stopCh   chan struct{}
 	// updateCh is used to communicate with controller manager to
 	// advertise availavble services via Device Plugin API
-	updateCh chan string
+	updateCh chan types.UpdateOp
 	logger   *zap.SugaredLogger
 	// Services storage
 	services
@@ -223,6 +224,8 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 	d.services.store[in.SvcUuid][in.PodUuid] = &nd
 	d.services.Unlock()
 	d.logger.Infof("Listen: Number of pods offering service: %s - %d", in.SvcUuid, len(d.services.store[in.SvcUuid]))
+	// Sending update to resource controller to announce new service availablility
+	go sendUpdate(d.updateCh, types.Add, in.SvcUuid, in.MaxConnections, 0)
 
 	// Connection liveness timer
 	ticker := time.NewTicker(msgSendInterval)
@@ -232,6 +235,10 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 				in.PodUuid, err, in.PodUuid, in.SvcUuid)
 			d.services.Lock()
 			defer d.services.Unlock()
+			// Service hosting pod is gone, sending update message to resource controller to stop
+			// advertising it
+			sendUpdate(d.updateCh, types.Delete, in.SvcUuid, 0, 0)
+			// Deleting Service from the store
 			delete(d.services.store[in.SvcUuid], in.PodUuid)
 			return err
 		}
@@ -240,6 +247,7 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 			continue
 			//
 		case <-nd.requestCh:
+			// Checking for limitss
 			if nd.usedConnections >= nd.maxConnections {
 				nd.responseCh <- false
 			} else {
@@ -247,6 +255,7 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 				nd.usedConnections++
 				nd.Unlock()
 				nd.responseCh <- true
+				sendUpdate(d.updateCh, types.Update, in.SvcUuid, 0, nd.maxConnections-nd.usedConnections)
 			}
 		case <-nd.releaseCh:
 			// When Descriptor consumer termoinates, its go routine sends a message over descriptor relaseCh
@@ -257,6 +266,7 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 				nd.usedConnections = 0
 			}
 			nd.Unlock()
+			sendUpdate(d.updateCh, types.Update, in.SvcUuid, 0, nd.maxConnections-nd.usedConnections)
 		}
 		d.logger.Infof("Listen: Service: %s used/max %d/%d connections", in.SvcUuid, nd.usedConnections, nd.maxConnections)
 	}
