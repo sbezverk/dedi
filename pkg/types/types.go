@@ -16,6 +16,5 @@ const (
 type UpdateOp struct {
 	Op                   Operation
 	ServiceID            string
-	MaxConnections       int32
 	AvailableConnections int32
 }

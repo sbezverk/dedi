@@ -64,14 +64,14 @@ func recvMsg(sd int) ([]byte, error) {
 	return buf, nil
 }
 
-func sendUpdate(updateCh chan types.UpdateOp, op types.Operation, svcID string, maxConnections, availableConnections int32) {
+func sendUpdate(updateCh chan types.UpdateOp, op types.Operation, svcID string, availableConnections int32) {
 	update := types.UpdateOp{
 		ServiceID: svcID,
 	}
 	switch op {
 	case types.Add:
 		update.Op = types.Add
-		update.MaxConnections = maxConnections
+		update.AvailableConnections = availableConnections
 	case types.Delete:
 		update.Op = types.Delete
 	case types.Update:
@@ -79,4 +79,12 @@ func sendUpdate(updateCh chan types.UpdateOp, op types.Operation, svcID string, 
 		update.AvailableConnections = availableConnections
 	}
 	updateCh <- update
+}
+
+func getServiceAvailableConnections(svc map[string]*descriptor) int32 {
+	total := int32(0)
+	for _, d := range svc {
+		total += (d.maxConnections - d.usedConnections)
+	}
+	return total
 }

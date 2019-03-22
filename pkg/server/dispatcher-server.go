@@ -225,7 +225,13 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 	d.services.Unlock()
 	d.logger.Infof("Listen: Number of pods offering service: %s - %d", in.SvcUuid, len(d.services.store[in.SvcUuid]))
 	// Sending update to resource controller to announce new service availablility
-	go sendUpdate(d.updateCh, types.Add, in.SvcUuid, in.MaxConnections, 0)
+	// only if it is a first pod hosting this service
+	// otherwise just updating number of available connections
+	if len(d.services.store[in.SvcUuid]) == 1 {
+		sendUpdate(d.updateCh, types.Add, in.SvcUuid, in.MaxConnections)
+	} else {
+		sendUpdate(d.updateCh, types.Update, in.SvcUuid, getServiceAvailableConnections(d.services.store[in.SvcUuid]))
+	}
 
 	// Connection liveness timer
 	ticker := time.NewTicker(msgSendInterval)
@@ -235,17 +241,23 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 				in.PodUuid, err, in.PodUuid, in.SvcUuid)
 			d.services.Lock()
 			defer d.services.Unlock()
-			// Service hosting pod is gone, sending update message to resource controller to stop
-			// advertising it
-			sendUpdate(d.updateCh, types.Delete, in.SvcUuid, 0, 0)
-			// Deleting Service from the store
+			// Removing pod from the store
 			delete(d.services.store[in.SvcUuid], in.PodUuid)
+			// One of Service hosting pods is gone, sending update message to resource controller to stop
+			// advertising if it was the last pod hosting the service
+			// Otherwise just reducing number of avialble connections.
+			if len(d.services.store[in.SvcUuid]) == 0 {
+				// No moore pods left hosting the service, it is safe to delete the service
+				sendUpdate(d.updateCh, types.Delete, in.SvcUuid, 0)
+			} else {
+				// There are still pods hosting the service, just update the number of avialble connections
+				sendUpdate(d.updateCh, types.Update, in.SvcUuid, getServiceAvailableConnections(d.services.store[in.SvcUuid]))
+			}
 			return err
 		}
 		select {
 		case <-ticker.C:
 			continue
-			//
 		case <-nd.requestCh:
 			// Checking for limitss
 			if nd.usedConnections >= nd.maxConnections {
@@ -255,7 +267,7 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 				nd.usedConnections++
 				nd.Unlock()
 				nd.responseCh <- true
-				sendUpdate(d.updateCh, types.Update, in.SvcUuid, 0, nd.maxConnections-nd.usedConnections)
+				sendUpdate(d.updateCh, types.Update, in.SvcUuid, getServiceAvailableConnections(d.services.store[in.SvcUuid]))
 			}
 		case <-nd.releaseCh:
 			// When Descriptor consumer termoinates, its go routine sends a message over descriptor relaseCh
@@ -266,9 +278,9 @@ func (d *dispatcher) Listen(in *api.ListenMsg, stream api.Dispatcher_ListenServe
 				nd.usedConnections = 0
 			}
 			nd.Unlock()
-			sendUpdate(d.updateCh, types.Update, in.SvcUuid, 0, nd.maxConnections-nd.usedConnections)
+			sendUpdate(d.updateCh, types.Update, in.SvcUuid, getServiceAvailableConnections(d.services.store[in.SvcUuid]))
 		}
-		d.logger.Infof("Listen: Service: %s used/max %d/%d connections", in.SvcUuid, nd.usedConnections, nd.maxConnections)
+		d.logger.Infof("Listen: Service: %s with available connections: %d", in.SvcUuid, getServiceAvailableConnections(d.services.store[in.SvcUuid]))
 	}
 }
 

@@ -39,7 +39,7 @@ func (rc *resourceController) Run() {
 	for {
 		select {
 		case msg := <-rc.updateCh:
-			rc.logger.Infof("Received update message from Dispatcher: %s", msg)
+			rc.handleUpdate(msg)
 		case <-rc.stopCh:
 			rc.logger.Infof("Received Shutdown message, shutting down...")
 			rc.Shutdown()
@@ -49,4 +49,41 @@ func (rc *resourceController) Run() {
 
 func (rc *resourceController) Shutdown() {
 
+}
+
+func (rc *resourceController) handleUpdate(msg types.UpdateOp) {
+	switch msg.Op {
+	case types.Add:
+		rc.logger.Infof("resource controller: Adding service: %s with maximum connections: %d", msg.ServiceID, msg.AvailableConnections)
+		go rc.addService(msg)
+	case types.Delete:
+		rc.logger.Infof("resource controller: Deleting service: %s", msg.ServiceID)
+		go rc.deleteService(msg)
+	case types.Update:
+		rc.logger.Infof("resource controller: Updating service: %s with number of available connections: %d", msg.ServiceID, msg.AvailableConnections)
+		go rc.updateService(msg)
+	default:
+		rc.logger.Warnf("resource controller: Unknown operation in message: %+v", msg)
+	}
+}
+
+func (rc *resourceController) addService(msg types.UpdateOp) {
+	// Check if the service with this ID already exists, do nothing if it does
+	if _, ok := rc.resources[msg.ServiceID]; ok {
+		return
+	}
+}
+
+func (rc *resourceController) deleteService(msg types.UpdateOp) {
+	// Check if the service with this ID does not exist, do nothing if it does not
+	if _, ok := rc.resources[msg.ServiceID]; !ok {
+		return
+	}
+}
+
+func (rc *resourceController) updateService(msg types.UpdateOp) {
+	// Check if the service with this ID does not exist, do nothing if it does not
+	if _, ok := rc.resources[msg.ServiceID]; !ok {
+		return
+	}
 }

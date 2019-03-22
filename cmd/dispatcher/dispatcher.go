@@ -32,7 +32,7 @@ func init() {
 
 func main() {
 	flag.Parse()
-	updateCh := make(chan types.UpdateOp)
+	updateCh := make(chan types.UpdateOp, 10)
 	dispatch, err := server.NewDispatcher(dispatcherSocket, logger, updateCh)
 	if err != nil {
 		logger.Errorf("Failed to instantiate Dispatcher with error: %+v", err)
