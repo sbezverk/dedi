@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sbezverk/dedi/pkg/tools"
+	"github.com/sbezverk/dedi/pkg/types"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -138,7 +139,7 @@ func (rm *resourceManager) Allocate(ctx context.Context, reqs *pluginapi.Allocat
 		response := pluginapi.ContainerAllocateResponse{
 			Devices: []*pluginapi.DeviceSpec{},
 			Envs: map[string]string{
-				"key": "dedi.io/dispatcher",
+				"socket": types.DispatcherSocket,
 			},
 		}
 		for _, id := range req.DevicesIDs {

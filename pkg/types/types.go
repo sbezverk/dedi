@@ -10,6 +10,8 @@ const (
 	Delete
 	// Update defines update of currenrly available conenction of the existing resource
 	Update
+	// DispatcherSocket defines the location of Dispatcher gRPC soccket
+	DispatcherSocket = "/var/lib/dispatch/dispatcher.sock"
 )
 
 // UpdateOp defines a struct which is used to carry ovwer update channel changes to resources

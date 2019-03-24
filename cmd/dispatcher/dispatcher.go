@@ -12,10 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	dispatcherSocket = "/var/lib/dispatch/dispatcher.sock"
-)
-
 var (
 	logger   *zap.SugaredLogger
 	register = flag.Bool("register", false, "set to true if registration with kubelet is required, default set to flase")
@@ -33,7 +29,7 @@ func init() {
 func main() {
 	flag.Parse()
 	updateCh := make(chan types.UpdateOp, 10)
-	dispatch, err := server.NewDispatcher(dispatcherSocket, logger, updateCh)
+	dispatch, err := server.NewDispatcher(types.DispatcherSocket, logger, updateCh)
 	if err != nil {
 		logger.Errorf("Failed to instantiate Dispatcher with error: %+v", err)
 		os.Exit(1)
