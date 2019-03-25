@@ -25,6 +25,7 @@ var (
 	dialTimeout = 30 * time.Second
 	svcID       = flag.String("svc-id", "service-1", "Service ID to register with Dispatcher.")
 	podID       = flag.String("pod-id", "pod-1", "POD ID to register with Dispatcher.")
+	maxConns    = flag.Int("max-connections", 1, "Maximum number of connections for a service")
 )
 
 func init() {
@@ -64,11 +65,13 @@ func main() {
 	client := dispatcher.NewDispatcherClient(clientConn)
 
 	listenMsg := dispatcher.ListenMsg{
-		PodUuid:        *podID,
 		SvcUuid:        *svcID,
-		MaxConnections: int32(1000),
+		MaxConnections: int32(*maxConns),
 	}
-
+	listenMsg.PodUuid = os.Getenv("POD_NAME")
+	if listenMsg.PodUuid == "" {
+		listenMsg.PodUuid = *podID
+	}
 	// Getting Unix Domain Socket for SendMsg via Listen gRPC call.
 	stream, err := client.Listen(context.Background(), &listenMsg)
 	if err != nil {

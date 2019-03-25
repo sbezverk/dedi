@@ -15,6 +15,12 @@ spec:
         - image: docker.io/sbezverk/connect:0.0.0
           name: connect
           imagePullPolicy: Always
+          args:
+            - --svc-id
+            - "service-1_1"
+          resources:
+            limits:
+              dedi.io/service-1_1: 1
           env:
             - name: POD_NAMESPACE
               valueFrom:

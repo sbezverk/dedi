@@ -15,6 +15,11 @@ spec:
         - image: docker.io/sbezverk/listen:0.0.0
           name: listen
           imagePullPolicy: Always
+          args:
+            - --svc-id
+            - "service-1_1"
+            - --max-connections
+            - "50"
           env:
             - name: POD_NAMESPACE
               valueFrom:

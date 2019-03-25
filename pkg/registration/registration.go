@@ -135,22 +135,22 @@ func (rm *resourceManager) ListAndWatch(e *pluginapi.Empty, d pluginapi.DevicePl
 // Allocate which return list of devices.
 func (rm *resourceManager) Allocate(ctx context.Context, reqs *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
 	responses := pluginapi.AllocateResponse{}
-	for _, req := range reqs.ContainerRequests {
-		response := pluginapi.ContainerAllocateResponse{
-			Devices: []*pluginapi.DeviceSpec{},
-			Envs: map[string]string{
-				"socket": types.DispatcherSocket,
-			},
-		}
-		for _, id := range req.DevicesIDs {
+	// for _, req := range reqs.ContainerRequests {
+	response := pluginapi.ContainerAllocateResponse{
+		Devices: []*pluginapi.DeviceSpec{},
+		Envs: map[string]string{
+			"socket": types.DispatcherSocket,
+		},
+	}
+	/*		for _, id := range req.DevicesIDs {
 			deviceSpec := pluginapi.DeviceSpec{}
 			deviceSpec.HostPath = id
 			deviceSpec.ContainerPath = id
 			deviceSpec.Permissions = "rw"
 			response.Devices = append(response.Devices, &deviceSpec)
-		}
-		responses.ContainerResponses = append(responses.ContainerResponses, &response)
-	}
+		} */
+	responses.ContainerResponses = append(responses.ContainerResponses, &response)
+	//}
 	return &responses, nil
 }
 

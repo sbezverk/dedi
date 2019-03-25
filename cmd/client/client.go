@@ -52,8 +52,11 @@ func main() {
 
 	client := dispatcher.NewDispatcherClient(clientConn)
 	connectMsg := dispatcher.ConnectMsg{
-		PodUuid: *podID,
 		SvcUuid: *svcID,
+	}
+	connectMsg.PodUuid = os.Getenv("POD_NAME")
+	if connectMsg.PodUuid == "" {
+		connectMsg.PodUuid = *podID
 	}
 	stream, err := client.Connect(context.Background(), &connectMsg)
 	if err != nil {
