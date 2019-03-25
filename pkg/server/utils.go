@@ -37,7 +37,8 @@ func sendMsg(socket string, socketControlMessage []byte) error {
 	return nil
 }
 
-func openSocket(socket string) (int, error) {
+// OpenSocket opens a unixgram socket and returns its int descriptor
+func OpenSocket(socket string) (int, error) {
 	uc, err := net.ListenUnixgram("unixgram", &net.UnixAddr{
 		Name: socket,
 		Net:  "unixgram",

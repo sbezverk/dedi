@@ -290,7 +290,7 @@ func (d *dispatcher) recvDescr(svcID, socket string) ([]byte, error) {
 		d.logger.Errorf("recvDescr: Service: %s error: %+v", svcID, err)
 		return nil, err
 	}
-	sd, err := openSocket(socket)
+	sd, err := OpenSocket(socket)
 	if err != nil {
 		d.logger.Errorf("recvDescr: Service: %s error: %+v", svcID, err)
 		return nil, err

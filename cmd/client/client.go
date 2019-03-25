@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"path"
 	"syscall"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sbezverk/dedi/pkg/apis/dispatcher"
+	"github.com/sbezverk/dedi/pkg/server"
 	"github.com/sbezverk/dedi/pkg/tools"
 
 	"go.uber.org/zap"
@@ -58,12 +58,18 @@ func main() {
 	if connectMsg.PodUuid == "" {
 		connectMsg.PodUuid = *podID
 	}
+	// Informing dispatcher about the service the client wants to connect to.
+	// In response, client gets a stream, stream is used for 2 purposes, 1 - recieve from
+	// dispatcher the location of the socket to receive the service's descriptor, 2 - for keepalive purposes
+	// if Dispatcher detects failure, it will assume that the client is no longer alive and return used connection
+	// into the pool of connections.
 	stream, err := client.Connect(context.Background(), &connectMsg)
 	if err != nil {
 		logger.Errorf("Failed to receive socket message from Dispatcher with error: %+v", err)
 		os.Exit(1)
 	}
 
+	// Loop to wait for the message from Dispatcher carrying the location of a socket.
 	var sock *dispatcher.ReplyMsg
 	for {
 		sock, err = stream.Recv()
@@ -76,27 +82,17 @@ func main() {
 			break
 		}
 	}
-
-	uc, err := net.ListenUnixgram("unixgram", &net.UnixAddr{
-		Name: sock.Socket,
-		Net:  "unixgram",
-	})
+	// Once the location of the socket is recevied, client starts listening
+	// on this socket to receive Service Descriptor.
+	fd, err := server.OpenSocket(sock.Socket)
 	if err != nil {
-		fmt.Printf("Failed to listen on socket %s with error: %+v\n", sock.Socket, err)
+		fmt.Printf("Failed to Open socket %s with error: %+v\n", sock.Socket, err)
 		os.Exit(1)
 	}
-	f, _ := uc.File()
-	fd := f.Fd()
-	num := 1
-	defer func() {
-		// Closing Unix Domain Socket used to receive Descriptor
-		syscall.Close(int(fd))
-		// Removing socket file
-		os.Remove(sock.Socket)
-	}()
-	buf := make([]byte, syscall.CmsgSpace(num*4))
+	// Support only 1 message per packet
+	buf := make([]byte, syscall.CmsgSpace(4))
 
-	n, oobn, rf, ss, err := syscall.Recvmsg(int(fd), nil, buf, 0)
+	n, oobn, rf, ss, err := syscall.Recvmsg(fd, nil, buf, 0)
 	if err != nil {
 		fmt.Printf("Failed to Receive massage on socket %s with error: %+v\n", sock.Socket, err)
 		os.Exit(1)
