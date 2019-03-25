@@ -125,6 +125,7 @@ func (rm *resourceManager) ListAndWatch(e *pluginapi.Empty, d pluginapi.DevicePl
 			close(rm.stopCh)
 			return nil
 		case newConnections := <-rm.connectionUpdateCh:
+			rm.logger.Infof("ListAndWatch: Service %s has number of connections updated to %d", rm.svcID, newConnections)
 			// Received a notification of a change in advertised services
 			rm.availableConnections = int32(newConnections)
 			d.Send(&pluginapi.ListAndWatchResponse{Devices: rm.buildDeviceList(pluginapi.Healthy)})
@@ -135,22 +136,22 @@ func (rm *resourceManager) ListAndWatch(e *pluginapi.Empty, d pluginapi.DevicePl
 // Allocate which return list of devices.
 func (rm *resourceManager) Allocate(ctx context.Context, reqs *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
 	responses := pluginapi.AllocateResponse{}
-	// for _, req := range reqs.ContainerRequests {
-	response := pluginapi.ContainerAllocateResponse{
-		Devices: []*pluginapi.DeviceSpec{},
-		Envs: map[string]string{
-			"socket": types.DispatcherSocket,
-		},
+	for _, req := range reqs.ContainerRequests {
+		response := pluginapi.ContainerAllocateResponse{
+			Mounts: []*pluginapi.Mount{},
+			Envs: map[string]string{
+				"socket": types.DispatcherSocket,
+			},
+		}
+		for _ = range req.DevicesIDs {
+			mountSpec := pluginapi.Mount{}
+			mountSpec.HostPath = types.DispatcherSocket
+			mountSpec.ContainerPath = types.DispatcherSocket
+			mountSpec.ReadOnly = false
+			response.Mounts = append(response.Mounts, &mountSpec)
+		}
+		responses.ContainerResponses = append(responses.ContainerResponses, &response)
 	}
-	/*		for _, id := range req.DevicesIDs {
-			deviceSpec := pluginapi.DeviceSpec{}
-			deviceSpec.HostPath = id
-			deviceSpec.ContainerPath = id
-			deviceSpec.Permissions = "rw"
-			response.Devices = append(response.Devices, &deviceSpec)
-		} */
-	responses.ContainerResponses = append(responses.ContainerResponses, &response)
-	//}
 	return &responses, nil
 }
 

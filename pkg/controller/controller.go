@@ -113,11 +113,16 @@ func (rc *resourceController) deleteService(msg types.UpdateOp) {
 		return
 	}
 	r.rm.Shutdown()
+	rc.Lock()
+	defer rc.Unlock()
+	delete(rc.resources, msg.ServiceID)
 }
 
 func (rc *resourceController) updateService(msg types.UpdateOp) {
 	// Check if the service with this ID does not exist, do nothing if it does not
-	if _, ok := rc.resources[msg.ServiceID]; !ok {
+	r, ok := rc.resources[msg.ServiceID]
+	if !ok {
 		return
 	}
+	r.connectionsUpdateCh <- int(msg.AvailableConnections)
 }
