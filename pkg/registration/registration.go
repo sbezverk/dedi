@@ -136,19 +136,11 @@ func (rm *resourceManager) ListAndWatch(e *pluginapi.Empty, d pluginapi.DevicePl
 // Allocate which return list of devices.
 func (rm *resourceManager) Allocate(ctx context.Context, reqs *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
 	responses := pluginapi.AllocateResponse{}
-	for _, req := range reqs.ContainerRequests {
+	for _ = range reqs.ContainerRequests {
 		response := pluginapi.ContainerAllocateResponse{
-			Mounts: []*pluginapi.Mount{},
 			Envs: map[string]string{
 				"socket": types.DispatcherSocket,
 			},
-		}
-		for _ = range req.DevicesIDs {
-			mountSpec := pluginapi.Mount{}
-			mountSpec.HostPath = types.DispatcherSocket
-			mountSpec.ContainerPath = types.DispatcherSocket
-			mountSpec.ReadOnly = false
-			response.Mounts = append(response.Mounts, &mountSpec)
 		}
 		responses.ContainerResponses = append(responses.ContainerResponses, &response)
 	}

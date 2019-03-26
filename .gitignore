@@ -22,3 +22,6 @@ bin
 
 # VScode files
 .vscode
+
+# Mac
+.DS_Store
