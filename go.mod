@@ -18,5 +18,5 @@ require (
 	golang.org/x/text v0.3.0
 	google.golang.org/genproto v0.0.0-20190307195333-5fe7a883aa19
 	google.golang.org/grpc v1.19.0
-	k8s.io/kubernetes v1.13.4
+	k8s.io/kubernetes v1.14.4
 )

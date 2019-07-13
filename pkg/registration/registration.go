@@ -36,7 +36,7 @@ type ResourceManager interface {
 	Shutdown()
 }
 
-// NewResourceManager creates an instance of a new resourceCOntroller and returns its interface
+// NewResourceManager creates an instance of a new resourceController and returns its interface
 func NewResourceManager(svcID string, logger *zap.SugaredLogger, connectionUpdateCh chan int, availableConnections int32) (ResourceManager, error) {
 	var err error
 	rm := resourceManager{
